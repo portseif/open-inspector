@@ -150,7 +150,8 @@ pnpm launch         # a disposable browser with the extension already installed
 | Command | What it does |
 | --- | --- |
 | `pnpm launch` | Disposable browser with the extension installed |
-| `pnpm dev` / `pnpm dev:firefox` | WXT dev build with hot reload |
+| `pnpm dev` | WXT dev build with hot reload (Chrome) |
+| `pnpm dev:firefox` / `pnpm dev:zen` | Firefox or Zen with the extension loaded, rebuilt and reloaded on every save |
 | `pnpm build` / `pnpm build:firefox` | Production build into `.output/` |
 | `pnpm zip` | Package for the store |
 | `pnpm test` | Unit tests |
