@@ -112,8 +112,8 @@ export function BoxDiagram({ box }: { box: BoxModel }) {
 /** Styles for the diagram, appended to the panel stylesheet. */
 export const BOX_DIAGRAM_STYLES = `
   .boxdiagram {
-    /* Past this it is just more coloured band; the numbers stay put. */
-    max-width: 420px;
+    /* Full width at any panel size, so its edges line up with the rows below. */
+    width: 100%;
     font-family: var(--mono);
     font-size: 9.5px;
     font-variant-numeric: tabular-nums;

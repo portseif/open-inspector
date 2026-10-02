@@ -15,7 +15,11 @@ export const PANEL_STYLES = `
     all: initial;
   }
 
-  * { box-sizing: border-box; }
+  /*
+   * Thin scrollbars everywhere in the panel: not inherited, so it goes on
+   * every element. Their colour is inherited, and set once on .panel.
+   */
+  * { box-sizing: border-box; scrollbar-width: thin; }
 
   .panel {
     --bg: #14181c;
@@ -42,6 +46,12 @@ export const PANEL_STYLES = `
      * reach 3:1 because the boundary is what tells you the control is there.
      */
     --rule-strong: #656b70;
+    /*
+     * A thumb and no track. The panel scrolls in several places at once — the
+     * body, the tree, code blocks — and a full track on each drew more lines
+     * than the content did. Mixed from --ink-mute so it follows the theme.
+     */
+    --scroll-thumb: color-mix(in srgb, var(--ink-mute) 55%, transparent);
     /* Text on an accent fill. See the note in the light block. */
     --on-accent: #14181c;
     --accent: #e4743f;
@@ -85,6 +95,7 @@ export const PANEL_STYLES = `
     line-height: 1.5;
     pointer-events: auto;
     overflow: hidden;
+    scrollbar-color: var(--scroll-thumb) transparent;
   }
 
   @media (prefers-color-scheme: light) {
@@ -1010,7 +1021,6 @@ export const PANEL_STYLES = `
     font-family: var(--mono);
     font-size: 11px;
     line-height: 1.65;
-    scrollbar-width: thin;
   }
 
   /* Rows grow to their content and scroll sideways, as deep trees need. */
@@ -1151,13 +1161,6 @@ export const PANEL_STYLES = `
     display: flex;
     flex-direction: column;
     gap: 12px;
-  }
-
-  .body::-webkit-scrollbar { width: 10px; }
-  .body::-webkit-scrollbar-thumb {
-    background: var(--rule);
-    border-radius: 5px;
-    border: 3px solid var(--bg);
   }
 
   .group { display: flex; flex-direction: column; gap: 4px; }
