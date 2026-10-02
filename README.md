@@ -179,7 +179,7 @@ packages/core    the engine. pure TypeScript, no chrome.*, no network
 packages/ui      shadow-DOM overlay and the interaction loop
 apps/extension   WXT shell: manifest, background worker, injected script
 apps/playground  manual test surface, and the demo page used for screenshots
-apps/site        the website — static files on Cloudflare Workers
+apps/site        the website — static files on GitHub Pages
 ```
 
 The engine deliberately knows nothing about browser extensions. It takes a DOM and returns data, which is what lets it be unit-tested without a browser and reused later in a CLI or a Playwright plugin.
@@ -198,7 +198,7 @@ It has already earned its keep. The first run found that Chrome serializes compu
 
 ## Contributing
 
-The reliability harness is the best place to start. A page the inspector gets wrong is a perfectly scoped issue: add it to `tests/fixtures/` as a snapshot, assert the correct reading, and fix it. No product-design judgment required, and every fixture makes the next change safer.
+The reliability harness is the best place to start. A page the inspector gets wrong is a perfectly scoped issue: reproduce the shape that breaks it, assert the correct reading, and fix it. An engine reading gets a unit test beside its module (`*.browser.test.ts` when it needs real layout or the real cascade); anything that needs the whole extension gets a fixture page in `apps/playground/` — `hostile.html` is the model — and a spec in `tests/e2e/`. No product-design judgment required, and every fixture makes the next change safer.
 
 ## Supporting it
 
