@@ -2,6 +2,7 @@ import { render } from 'preact';
 import { lockHost, raiseToTopLayer } from '../host.js';
 import { Panel } from './Panel.jsx';
 import { EditingContext, type EditingApi } from './editing.jsx';
+import type { StructureApi } from './structure-tree.jsx';
 import { PANEL_STYLES } from './panel-styles.js';
 import { BOX_DIAGRAM_STYLES } from './box-diagram.jsx';
 import type { PanelData } from './view-model.js';
@@ -39,6 +40,8 @@ export interface PanelOptions {
   onStep?: (direction: 'parent' | 'child' | 'previous' | 'next') => void;
   /** Omit to render a read-only panel. */
   editing?: EditingApi;
+  /** Omit and the structure drawer is not offered. */
+  structure?: StructureApi;
 }
 
 /**
@@ -130,6 +133,7 @@ export function createPanel(options: PanelOptions): PanelHandle {
         onTogglePicking={() => options.onTogglePicking?.()}
         onSelectAncestor={(depth) => options.onSelectAncestor?.(depth)}
         onStep={(direction) => options.onStep?.(direction)}
+        structure={options.structure}
         onFlip={() => {
           side = side === 'right' ? 'left' : 'right';
           paint();

@@ -55,6 +55,10 @@ async function auditEverySurface(page: Page): Promise<Finding[]> {
   await panel(page).getByRole('button', { name: 'Keyboard shortcuts' }).click();
   await expect(panel(page).locator('.head .onboard-keys')).toBeVisible();
   findings.push(...(await auditPanel(page, 'shortcuts open')));
+
+  await panel(page).getByRole('button', { name: 'Structure' }).click();
+  await expect(panel(page).getByRole('tree')).toBeVisible();
+  findings.push(...(await auditPanel(page, 'structure open')));
   return findings;
 }
 

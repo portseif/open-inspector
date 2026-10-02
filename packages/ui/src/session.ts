@@ -14,6 +14,8 @@ import { createPanel, type PanelHandle } from './panel/mount.jsx';
 import { collectElementData } from './panel/collect.js';
 import { createPageScanner, type ContrastAudit, type PageScanner } from './panel/page.js';
 import { saveViaAnchor } from './panel/download.js';
+import { createStructureModel, type StructureModel } from './panel/structure.js';
+import type { StructureApi } from './panel/structure-tree.jsx';
 import type { EditEntry, PageData, PanelData } from './panel/view-model.js';
 
 /**
@@ -202,6 +204,16 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
    * the style index and must not happen per hover.
    */
   let pseudoStates: edit.PseudoStateController | null = null;
+
+  /** The structure drawer's state. Created the first time the drawer opens. */
+  let structure: StructureModel | null = null;
+  /**
+   * The element under the pointer in the structure drawer.
+   *
+   * It borrows the highlight and nothing else: the panel keeps showing the
+   * selection, because hovering a row is looking, not choosing.
+   */
+  let previewElement: Element | null = null;
 
   function ensurePseudoStates(): edit.PseudoStateController {
     pseudoStates ??= edit.createPseudoStateController(doc);
@@ -491,6 +503,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     if (!element.isConnected) return;
     pinnedElement = element;
     currentElement = element;
+    structure?.reveal(element);
     panel?.setPinned(true);
     scheduleSettledScan(element);
     scheduleRender();
@@ -514,11 +527,70 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     if (next) selectElement(next);
   }
 
+  function structureApi(): StructureApi {
+    return {
+      setOpen(open) {
+        structure ??= createStructureModel(doc, { ignore: isOurs });
+        structure.setOpen(open);
+
+        // Opening shows where you are; it is the one reveal not made by a
+        // selection, since the panel may be following the pointer.
+        const shown = pinnedElement ?? currentElement;
+        if (open && shown) structure.reveal(shown);
+        if (!open) previewElement = null;
+        scheduleRender();
+      },
+
+      setExpanded(id, expanded) {
+        structure?.setExpanded(id, expanded);
+        scheduleRender();
+      },
+
+      showMore(id) {
+        structure?.showMore(id);
+        scheduleRender();
+      },
+
+      preview(id) {
+        const next = id === null ? null : (structure?.elementFor(id) ?? null);
+        if (next === previewElement) return;
+        previewElement = next;
+        scheduleRender();
+      },
+
+      select(id) {
+        const element = structure?.elementFor(id);
+        if (!element) return;
+        previewElement = null;
+        selectElement(element);
+        scrollIntoViewIfHidden(element);
+      },
+    };
+  }
+
+  /**
+   * Bring a selection made from the tree on screen, if it is not already.
+   *
+   * Only off-screen elements move the page: scrolling one that is already in
+   * view would shift what you were looking at for no reason. An element that
+   * renders no box (`<head>`, `display: none`) measures as all zeros and is
+   * left alone, since there is nothing to scroll to.
+   */
+  function scrollIntoViewIfHidden(element: Element): void {
+    const rect = element.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const offscreen =
+      rect.bottom < 0 || rect.top > win.innerHeight || rect.right < 0 || rect.left > win.innerWidth;
+    if (offscreen) element.scrollIntoView({ block: 'center', inline: 'nearest' });
+  }
+
   function ensurePanel(): PanelHandle | null {
     if (!wantsPanel) return null;
     panel ??= createPanel({
       doc,
       editing: editingApi(),
+      structure: structureApi(),
       onTogglePicking: () => setPicking(!picking),
       onSelectAncestor: selectAncestor,
       onStep: stepSelection,
@@ -548,8 +620,8 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     surface.update(buildData(element, null));
   }
 
-  /** Paint the overlay and panel for one element. Must stay cheap. */
-  function show(element: Element, boundary: PanelData['boundary']): void {
+  /** Draw the highlight over one element. */
+  function paintOverlay(element: Element, boundary: PanelData['boundary']): void {
     const descriptor = describeElement(element);
 
     ensureOverlay().show({
@@ -558,6 +630,11 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
       dimensions: formatDimensions(descriptor.width, descriptor.height),
       boundary,
     });
+  }
+
+  /** Paint the overlay and panel for one element. Must stay cheap. */
+  function show(element: Element, boundary: PanelData['boundary']): void {
+    paintOverlay(element, boundary);
 
     const surface = ensurePanel();
     if (!surface) return;
@@ -572,6 +649,11 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
       : collectElementData(element, win, { styleIndex: ensureStyleIndex(), ignore: isOurs });
 
     data.boundary = boundary;
+
+    // Rebuilt on every paint while the drawer is open, which keeps it true to
+    // a page that is changing underneath it. The walk covers only expanded
+    // rows, so its cost follows what is on screen.
+    if (structure?.open) data.structure = structure.build(element);
 
     if (pseudoStates) {
       data.pseudoStates = {
@@ -710,12 +792,31 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
   }
 
   function render(): void {
-    // Disarmed: keep showing the held element's data, but paint nothing over
-    // the page. The user asked for the page back.
-    if (!picking && pinnedElement) {
-      if (pinnedElement.isConnected) {
+    renderSelection();
+
+    // A row hovered in the structure drawer takes the highlight for as long
+    // as the pointer is on it, whether or not the picker is armed.
+    if (previewElement) {
+      if (previewElement.isConnected) paintOverlay(previewElement, null);
+      else previewElement = null;
+    }
+  }
+
+  function renderSelection(): void {
+    /**
+     * Disarmed with the tree closed: keep showing the held element's data, but
+     * paint nothing over the page. The user asked for the page back.
+     *
+     * The open tree counts as asking for the highlight. Choosing a row is
+     * choosing something on the page, and with the picker off the highlight
+     * is the only place that choice would otherwise show.
+     */
+    const highlighting = picking || (structure?.open ?? false);
+    const held = pinnedElement ?? currentElement;
+    if (!highlighting && held) {
+      if (held.isConnected) {
         overlay?.hide();
-        showPanelOnly(pinnedElement);
+        showPanelOnly(held);
       }
       return;
     }
@@ -771,6 +872,15 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
   function onPointerMove(event: Event): void {
     // A held selection is held: hover-following resumes only once released.
     if (pinnedElement) return;
+    /**
+     * The pointer over our own panel is not pointing at the page.
+     *
+     * Probing there looks straight through the panel and inspects whatever
+     * sits underneath it, so reaching for a tree row used to swap the
+     * selection for some element behind the panel on the way. Events from
+     * inside the shadow root arrive retargeted to its host.
+     */
+    if (event.target instanceof Element && isOurs(event.target)) return;
     const pointer = event as PointerEvent;
     pointerX = pointer.clientX;
     pointerY = pointer.clientY;
@@ -941,6 +1051,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     // sets currentElement itself — so a tap with no hover frame before it (a
     // touch or pen, or a click straight after activating) would never get one.
     if (pinnedElement && currentElement !== pinnedElement) scheduleSettledScan(pinnedElement);
+    if (pinnedElement) structure?.reveal(pinnedElement);
     currentElement = result.element;
     panel?.setPinned(pinnedElement !== null);
     scheduleRender();
@@ -1047,6 +1158,8 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
      * reopening on the same page does not pay for the document walk twice.
      */
     contrastAudit = null;
+    structure = null;
+    previewElement = null;
     overrides?.clearAll();
     pseudoStates?.destroy();
     pseudoStates = null;

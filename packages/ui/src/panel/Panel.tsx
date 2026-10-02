@@ -5,6 +5,7 @@ import { SearchContext } from './search.jsx';
 import { useEditing } from './editing.jsx';
 import { Group } from './primitives.jsx';
 import { Icon, TAB_ICONS } from './icons.jsx';
+import { StructureTree, type StructureApi } from './structure-tree.jsx';
 import {
   AssetsSection,
   MarkupSection,
@@ -23,6 +24,8 @@ export interface PanelProps {
   onSelectAncestor: (depth: number) => void;
   /** Step to the parent, first child, or a sibling. */
   onStep: (direction: 'parent' | 'child' | 'previous' | 'next') => void;
+  /** The structure drawer's controls; absent, the drawer is not offered. */
+  structure?: StructureApi | undefined;
   /** True when the panel is frozen on one element. */
   pinned: boolean;
   /** True while the picker is armed and the page is being captured. */
@@ -133,10 +136,15 @@ function Breadcrumb({
   tree,
   onSelectAncestor,
   onStep,
+  structureOpen,
+  onToggleStructure,
 }: {
   tree: TreeInfo;
   onSelectAncestor: (depth: number) => void;
   onStep: PanelProps['onStep'];
+  structureOpen: boolean;
+  /** Absent when there is no drawer to toggle. */
+  onToggleStructure?: (() => void) | undefined;
 }) {
   const trail = useRef<HTMLElement>(null);
 
@@ -192,6 +200,23 @@ function Breadcrumb({
         >
           <Icon name="right" size={12} />
         </button>
+        {/* With the steps, because it is another way of moving around the
+            same tree — the one that reaches anything in two clicks. */}
+        {onToggleStructure ? (
+          <button
+            type="button"
+            class="step"
+            aria-pressed={structureOpen}
+            // Only while there is a drawer to point at: an id that is not in
+            // the document is an invalid reference.
+            aria-controls={structureOpen ? 'oi-structure' : undefined}
+            aria-label="Structure"
+            title={structureOpen ? 'Hide the document tree' : 'Show the document tree'}
+            onClick={onToggleStructure}
+          >
+            <Icon name="tree" size={12} />
+          </button>
+        ) : null}
       </div>
 
       <nav class="crumb-trail" aria-label="Ancestors" ref={trail}>
@@ -661,6 +686,7 @@ export function Panel({
   onFlip,
   onSelectAncestor,
   onStep,
+  structure,
   confirmClose = null,
   onCancelClose,
 }: PanelProps) {
@@ -813,7 +839,20 @@ export function Panel({
           {showKeys ? <ShortcutList /> : null}
           {note ? <p class="boundary-note">{note}</p> : null}
           {data.tree ? (
-            <Breadcrumb tree={data.tree} onSelectAncestor={onSelectAncestor} onStep={onStep} />
+            <Breadcrumb
+              tree={data.tree}
+              onSelectAncestor={onSelectAncestor}
+              onStep={onStep}
+              structureOpen={data.structure !== undefined}
+              onToggleStructure={
+                structure ? () => structure.setOpen(data.structure === undefined) : undefined
+              }
+            />
+          ) : null}
+          {/* Under the path it expands on, and above every tab, so a row
+              clicked here shows its styles directly below. */}
+          {data.structure && structure ? (
+            <StructureTree info={data.structure} api={structure} />
           ) : null}
           <div class="toolbar">
             <label class="search-box">

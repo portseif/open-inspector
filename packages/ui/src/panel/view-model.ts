@@ -56,6 +56,44 @@ export interface TreeInfo {
 }
 
 /**
+ * One row of the structure drawer.
+ *
+ * Rows carry ids, not elements, for the same reason the rest of this file
+ * carries strings: the panel renders data and hands ids back, and the session
+ * is the only side that turns an id into something on the page.
+ */
+export interface StructureRowInfo {
+  /** Stable across repaints. A "more" row carries the id of the parent it belongs to. */
+  id: number;
+  kind: 'element' | 'shadow-root' | 'more';
+  depth: number;
+  label: string;
+  /** A childless element's text, shortened. */
+  text?: string | undefined;
+  /** A frame's address. */
+  address?: string | undefined;
+  expandable: boolean;
+  expanded: boolean;
+  /** "more" rows: how many children are not listed yet. */
+  hidden?: number | undefined;
+}
+
+/** The document as an expandable tree. Present only while the drawer is open. */
+export interface StructureInfo {
+  rows: StructureRowInfo[];
+  /** The element the panel is showing, when its row is listed. */
+  selectedId: number | null;
+  /**
+   * Counts reveals: selections made on purpose, which expanded the tree down
+   * to the selected row. The drawer scrolls to that row when this changes and
+   * at no other time, so sweeping the pointer over the page leaves it alone.
+   */
+  revealed: number;
+  /** The row ceiling cut the listing short. */
+  truncated: boolean;
+}
+
+/**
  * Forceable pseudo-states for the selected element.
  *
  * `available` is what the page actually styles. Offering a :hover toggle on a
@@ -227,6 +265,8 @@ export interface PanelData {
 
   /** Ancestor chain and stepping affordances for the selected element. */
   tree?: TreeInfo | undefined;
+  /** The structure drawer's rows. Absent while the drawer is closed. */
+  structure?: StructureInfo | undefined;
   /** Forceable pseudo-states, and which are on. */
   pseudoStates?: PseudoStateInfo | undefined;
   /** The element serialized back to source. */

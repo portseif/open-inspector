@@ -28,6 +28,10 @@ const PATHS = {
   down: 'M8 3.5v9M4.5 9L8 12.5 11.5 9',
   left: 'M12.5 8h-9M7 4.5L3.5 8 7 11.5',
   right: 'M3.5 8h9M9 4.5L12.5 8 9 11.5',
+  // A parent row with two children hanging off it.
+  tree: 'M2.5 3.5h6M4.5 3.5v8.5M4.5 8h2M4.5 12h2M8.5 8h5M8.5 12h5',
+  // Points right when a tree row is closed; rotated a quarter turn when open.
+  caret: 'M6 4l4 4-4 4',
   eye: 'M1.8 8S4 3.8 8 3.8 14.2 8 14.2 8 12 12.2 8 12.2 1.8 8 1.8 8zM8 6.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6z',
   eyeOff: 'M1.8 8S4 3.8 8 3.8 14.2 8 14.2 8 12 12.2 8 12.2 1.8 8 1.8 8zM8 6.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6zM2.5 13.5l11-11',
   search: 'M7 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM10 10l3 3',

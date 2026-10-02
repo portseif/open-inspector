@@ -985,6 +985,85 @@ export const PANEL_STYLES = `
     font-variant-numeric: tabular-nums;
   }
 
+  /* The drawer toggle is a step button that stays lit while the tree is open. */
+  .step[aria-pressed='true'] { color: var(--accent); background: var(--accent-wash); }
+
+  /* ---------- structure drawer ---------- */
+
+  /*
+   * A fixed share of the panel with its own scroll, so a deep tree never
+   * pushes the tab content off screen. The bottom edge can be dragged: some
+   * pages want a tall tree, most want their styles.
+   */
+  .structure {
+    position: relative;
+    height: 220px;
+    min-height: 96px;
+    max-height: 70vh;
+    resize: vertical;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 3px 0;
+    background: var(--bg-sunk);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.65;
+    scrollbar-width: thin;
+  }
+
+  /* Rows grow to their content and scroll sideways, as deep trees need. */
+  .node {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    width: max-content;
+    min-width: 100%;
+    padding-right: 10px;
+    white-space: nowrap;
+    color: var(--ink-soft);
+    cursor: default;
+  }
+  .node:hover { background: var(--bg-raised); }
+  .node:focus { outline: none; }
+  .node:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+  /* Ink on the wash: the selected row must stay as legible as any other. */
+  .node[aria-selected='true'] { background: var(--accent-wash); color: var(--ink); }
+  .node[aria-selected='true'] .node-attrs,
+  .node[aria-selected='true'] .node-text { color: var(--ink); }
+
+  .node-twisty {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    color: var(--ink-mute);
+  }
+  .node-twisty .icon { transition: transform 120ms ease; }
+  .node-twisty[data-open='true'] .icon { transform: rotate(90deg); }
+
+  .node-tag { color: var(--ink); }
+  .node-attrs { color: var(--ink-mute); }
+  .node[data-kind='shadow-root'] .node-tag { color: var(--ink-soft); font-style: italic; }
+  .node-text { margin-left: 6px; color: var(--ink-mute); font-family: var(--sans); }
+  .node-text::before { content: '“'; }
+  .node-text::after { content: '”'; }
+  .node-address { margin-left: 6px; color: var(--ink-soft); }
+  .node-more { color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; }
+
+  .structure-note {
+    margin: 4px 8px;
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--warn);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .node-twisty .icon { transition: none; }
+  }
+
   /* ---------- rail ---------- */
 
   /*
