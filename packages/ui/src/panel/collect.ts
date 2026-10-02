@@ -18,6 +18,7 @@ import type {
   LayoutInfo,
   PanelData,
   RuleInfo,
+  SourceInfo,
   TreeInfo,
   TypeInfo,
 } from './view-model.js';
@@ -474,6 +475,28 @@ function readRules(
   return { rules, unreadableSheets: explained.unreadableSheetCount };
 }
 
+// ── source ──────────────────────────────────────────────────────────────────
+
+const LANGUAGE_LABELS: Record<markup.ElementSource['language'], string> = {
+  css: 'CSS',
+  javascript: 'JavaScript',
+  json: 'JSON',
+  html: 'HTML',
+};
+
+function readSource(element: Element): SourceInfo | undefined {
+  const read = markup.readElementSource(element);
+  if (!read) return undefined;
+
+  const info: SourceInfo = {
+    language: LANGUAGE_LABELS[read.language],
+    text: read.text,
+    truncated: read.truncated,
+  };
+  if (read.note) info.note = read.note;
+  return info;
+}
+
 // ── entry point ─────────────────────────────────────────────────────────────
 
 /** Build the breadcrumb and stepping flags for one element. */
@@ -530,7 +553,7 @@ export function collectElementData(
     return found.rules.length > 0 ? [{ pseudo, rules: found.rules }] : [];
   });
 
-  return {
+  const data: PanelData = {
     selectorLabel: descriptor.selectorLabel,
     tagName: descriptor.tagName,
     dimensions: formatDimensions(descriptor.width, descriptor.height),
@@ -551,4 +574,8 @@ export function collectElementData(
       jsx: markup.serializeElement(element, { dialect: 'jsx' }).text,
     },
   };
+
+  const source = readSource(element);
+  if (source) data.source = source;
+  return data;
 }

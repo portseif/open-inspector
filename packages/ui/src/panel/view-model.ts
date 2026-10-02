@@ -235,6 +235,16 @@ export interface AssetEntry {
   noPreview?: string | undefined;
 }
 
+/** The code behind an element that does not render: a style, a script, head metadata. */
+export interface SourceInfo {
+  /** For the heading: `CSS`, `JavaScript`, `JSON`, `HTML`. */
+  language: string;
+  text: string;
+  /** Where the text came from, or why there is none. */
+  note?: string | undefined;
+  truncated: boolean;
+}
+
 /** Everything about the element currently under inspection. */
 export interface PanelData {
   selectorLabel: string;
@@ -265,6 +275,8 @@ export interface PanelData {
 
   /** Ancestor chain and stepping affordances for the selected element. */
   tree?: TreeInfo | undefined;
+  /** Present only for elements that do not render; the Styles tab shows it instead of a box. */
+  source?: SourceInfo | undefined;
   /** The structure drawer's rows. Absent while the drawer is closed. */
   structure?: StructureInfo | undefined;
   /** Forceable pseudo-states, and which are on. */

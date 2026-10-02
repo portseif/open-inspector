@@ -211,6 +211,25 @@ test.describe('structure drawer', () => {
     await expect(header(page)).toHaveText('div.card-grid');
   });
 
+  test('a style element shows its source instead of a box', async ({
+    context,
+    serviceWorker,
+  }) => {
+    const page = await context.newPage();
+    await openInspector(page, serviceWorker, FIXTURE_URL);
+    await pin(page, '#plain-button');
+    await openDrawer(page);
+
+    const head = drawer(page).locator('.node', { hasText: /^head$/ });
+    await head.locator('.node-twisty').click();
+    await drawer(page).locator('.node', { hasText: /^style$/ }).first().click();
+
+    await expect(header(page)).toHaveText('style');
+    await expect(panel(page).locator('.group-title', { hasText: 'Source · CSS' })).toBeVisible();
+    await expect(panel(page).locator('.body pre')).toContainText('{');
+    await expect(panel(page).locator('.boxdiagram')).toHaveCount(0);
+  });
+
   test('keeps the inspector’s own UI out of the tree', async ({ context, serviceWorker }) => {
     const page = await context.newPage();
     await openInspector(page, serviceWorker, FIXTURE_URL);

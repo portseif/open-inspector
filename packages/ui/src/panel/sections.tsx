@@ -677,6 +677,44 @@ export function AssetsSection({ data }: SectionProps) {
 }
 
 /**
+ * The Styles tab for an element that does not render.
+ *
+ * A `<style>` or `<script>` has no box: its box model is all zeros and its
+ * matched rules are whatever `*` sets. The code it carries is the thing to
+ * see, so that is what the tab shows instead.
+ */
+export function SourceSection({ data }: SectionProps) {
+  const source = data.source;
+  if (!source) return null;
+
+  return (
+    <>
+      <ChangesSection
+        edits={data.edits ?? []}
+        css={data.editsCss ?? ''}
+        prompt={data.editsPrompt ?? ''}
+      />
+
+      <Group title={`Source · ${source.language}`}>
+        {source.text ? (
+          <>
+            <div class="export-actions">
+              <CopyButton text={source.text} label="copy" />
+            </div>
+            {/* Focusable, so a keyboard user can scroll a long stylesheet. */}
+            <pre tabIndex={0}>{source.text}</pre>
+          </>
+        ) : null}
+        {source.note ? <Empty>{source.note}</Empty> : null}
+        {source.truncated ? (
+          <Empty>This is long enough that only the first 100,000 characters are shown.</Empty>
+        ) : null}
+      </Group>
+    </>
+  );
+}
+
+/**
  * The element, written back out as source.
  *
  * Not `outerHTML`: that carries framework hydration ids, our own attributes

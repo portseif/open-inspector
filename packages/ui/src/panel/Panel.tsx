@@ -14,6 +14,7 @@ import {
   LayoutSection,
   PseudoRulesSection,
   RulesSection,
+  SourceSection,
   StylesSection,
   TypeSection,
 } from './sections.jsx';
@@ -892,11 +893,15 @@ export function Panel({
           data-searching={query.trim() !== ''}
         >
           {tab === 'styles' ? (
-            <>
-              <StylesSection data={data} />
-              <RulesSection data={data} />
-              <PseudoRulesSection data={data} />
-            </>
+            data.source ? (
+              <SourceSection data={data} />
+            ) : (
+              <>
+                <StylesSection data={data} />
+                <RulesSection data={data} />
+                <PseudoRulesSection data={data} />
+              </>
+            )
           ) : null}
           {tab === 'color' ? <ColorSection data={data} /> : null}
           {tab === 'type' ? <TypeSection data={data} /> : null}
