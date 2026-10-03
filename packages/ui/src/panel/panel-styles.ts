@@ -1506,7 +1506,18 @@ export const PANEL_STYLES = `
   /* Neutral: a conformance figure is a reading, and accent means "changed". */
   .meter > span { display: block; height: 100%; border-radius: 2px; background: var(--ink-soft); }
 
+  /*
+   * A code block is the point of the view it is in — Markup, Export, a
+   * stylesheet's source — so it takes whatever height the panel has left
+   * rather than stopping at a fixed one: its group grows into the body, and
+   * the block grows inside its group. Past that it scrolls on its own. The
+   * minimums keep it usable when the content above it is tall.
+   */
+  .body > .group:has(> pre) { flex: 1 1 0; min-height: 180px; }
+
   pre {
+    flex: 1 1 0;
+    min-height: 120px;
     margin: 0;
     padding: 8px 10px;
     background: var(--bg-sunk);
@@ -1515,9 +1526,7 @@ export const PANEL_STYLES = `
     font-size: 10.5px;
     line-height: 1.55;
     color: var(--ink-soft);
-    overflow-x: auto;
-    max-height: 260px;
-    overflow-y: auto;
+    overflow: auto;
     white-space: pre;
   }
 
