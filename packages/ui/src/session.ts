@@ -41,6 +41,14 @@ export interface InspectorSession {
   /** True while the pointer picks elements and page clicks are captured. */
   readonly picking: boolean;
   readonly pinned: boolean;
+  /** The element being held, or null while the pointer decides. */
+  readonly selected: Element | null;
+  /**
+   * Hold an element, as clicking it would. Ignored while inactive. Lets a
+   * new session pick up where an old one left off — the playground's hot
+   * reload swaps sessions this way.
+   */
+  select(element: Element): void;
   activate(): void;
   deactivate(): void;
   toggle(): boolean;
@@ -1269,6 +1277,12 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     updateSettings: applySettings,
     get pinned() {
       return pinnedElement !== null;
+    },
+    get selected() {
+      return pinnedElement;
+    },
+    select(element: Element) {
+      if (active) selectElement(element);
     },
     activate,
     deactivate,
