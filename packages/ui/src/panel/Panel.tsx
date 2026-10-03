@@ -8,6 +8,7 @@ import { Icon, TAB_ICONS } from './icons.jsx';
 import { StructureTree, type StructureApi } from './structure-tree.jsx';
 import { SettingsSection } from './settings-view.jsx';
 import { SvgPasteSection } from './svg-tool.jsx';
+import { ScriptSection } from './script-section.jsx';
 import type { InspectorSettings, PanelPlacement } from '../settings.js';
 import {
   DEFAULT_WIDTH,
@@ -1191,6 +1192,7 @@ export function Panel({
           ) : null}
           {tab === 'assets' ? <AssetsSection data={data} /> : null}
           {tab === 'markup' ? <MarkupSection data={data} /> : null}
+          {tab === 'js' ? <ScriptSection data={data} /> : null}
           {tab === 'export' ? <ExportSection data={data} /> : null}
           {tab === 'svg' ? <SvgPasteSection text={pastedSvg} onText={setPastedSvg} /> : null}
           {tab === 'settings' && onChangeSettings && data.settings ? (

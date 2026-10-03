@@ -8,6 +8,7 @@ export const PING = 'open-inspector:ping';
 export const TOGGLE = 'open-inspector:toggle';
 export const SAVE = 'open-inspector:save';
 export const RESIZE = 'open-inspector:resize';
+export const HANDLERS = 'open-inspector:handlers';
 
 export interface PingMessage {
   type: typeof PING;
@@ -54,6 +55,25 @@ export interface ResizeMessage {
    * under automation it reads 0.
    */
   innerWidth: number;
+}
+
+/**
+ * Ask the background worker to read the page's event handlers.
+ *
+ * What a page's scripts attach to its elements — an `onclick` property, a
+ * React or Vue prop, a jQuery binding — lives in the page's own world, which
+ * the content script cannot see into. The worker runs a read-only probe
+ * there with `scripting.executeScript`, the permission already held for
+ * injecting the inspector, and the probe reports to the content script by
+ * dispatching `eventName` on each element it found handlers on.
+ */
+export interface HandlersMessage {
+  type: typeof HANDLERS;
+  eventName: string;
+}
+
+export interface HandlersResponse {
+  ok: boolean;
 }
 
 export type InspectorMessage = PingMessage | ToggleMessage | SaveMessage | ResizeMessage;
@@ -106,6 +126,23 @@ export function isSaveMessage(value: unknown): value is SaveMessage {
   } catch {
     return false;
   }
+}
+
+/**
+ * The only event names the probe may dispatch: ours, with a random suffix.
+ * Anything else would let a forged message make the probe fire events of
+ * the sender's choosing on every element of the page.
+ */
+const HANDLER_EVENT = /^open-inspector-handlers-[a-z0-9]{6,16}$/;
+
+export function isHandlersMessage(value: unknown): value is HandlersMessage {
+  if (typeof value !== 'object' || value === null) return false;
+  const message = value as Partial<HandlersMessage>;
+  return (
+    message.type === HANDLERS &&
+    typeof message.eventName === 'string' &&
+    HANDLER_EVENT.test(message.eventName)
+  );
 }
 
 export function isResizeMessage(value: unknown): value is ResizeMessage {

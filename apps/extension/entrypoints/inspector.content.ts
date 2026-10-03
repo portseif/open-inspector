@@ -2,11 +2,13 @@ import { defineContentScript } from 'wxt/sandbox';
 import { createInspectorSession } from '@open-inspector/ui';
 import { loadSettings, onSettingsChanged, saveSettings } from '../lib/settings.js';
 import {
+  HANDLERS,
   PING,
   RESIZE,
   SAVE,
   TOGGLE,
   isInspectorMessage,
+  type HandlersResponse,
   type ResizeResponse,
   type ToggleResponse,
 } from '../lib/messages.js';
@@ -72,6 +74,20 @@ export default defineContentScript({
       // Kept in storage.local, which content scripts can write directly.
       onSettingsChange: (settings) => {
         void saveSettings(settings);
+      },
+
+      // Only the worker can run code in the page's own world, where the
+      // handlers a page's scripts attached are visible. See lib/messages.ts.
+      readPageHandlers: async (eventName) => {
+        try {
+          const response = (await withTimeout(
+            browser.runtime.sendMessage({ type: HANDLERS, eventName }),
+            4000,
+          )) as HandlersResponse | undefined;
+          return response?.ok === true;
+        } catch {
+          return false;
+        }
       },
 
       // Only the worker can move a window; a content script has no windows API.

@@ -56,7 +56,7 @@ export async function pin(page: Page, target: string | Locator): Promise<void> {
 /** Select a tab by id and wait for it to report itself selected. */
 export async function openTab(
   page: Page,
-  id: 'styles' | 'color' | 'type' | 'layout' | 'assets' | 'markup' | 'export' | 'svg',
+  id: 'styles' | 'color' | 'type' | 'layout' | 'assets' | 'markup' | 'js' | 'export' | 'svg',
 ): Promise<void> {
   const tab = panel(page).locator(`#oi-tab-${id}`);
   await tab.click();

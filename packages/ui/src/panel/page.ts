@@ -5,6 +5,7 @@ import {
   describeElement,
   layout,
   round,
+  script,
   tokens,
   typography,
 } from '@open-inspector/core';
@@ -663,6 +664,7 @@ export function createPageScanner(options: PageScanOptions = {}): PageScanner {
       typeScale: toTypeScale(typeScale, variables),
       spacingScale: toSpacingScale(spacing.scale, variables),
       assets: toAssets(inventory, collectLoadedUrls(doc, view)),
+      scripts: script.pageScripts(doc),
       // Any walk hitting its budget means the answer is partial. Wikipedia's
       // article page exhausts the element budget, and silently showing a
       // shortened list would read as "this is everything".

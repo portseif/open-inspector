@@ -6,6 +6,7 @@ import {
   probeAtPoint,
   readBoxModel,
   ancestorTrail,
+  script,
   stepTree,
   type TreeDirection,
 } from '@open-inspector/core';
@@ -96,6 +97,16 @@ export interface SessionOptions {
    * writes them to storage; absent, a change lasts as long as the session.
    */
   onSettingsChange?: (settings: InspectorSettings) => void;
+  /**
+   * Runs `script.probeHandlersInPage` in the page's own world with this event
+   * name, resolving whether it ran.
+   *
+   * What a page's scripts attach — an `onclick` property, React and Vue
+   * props, jQuery bindings — is only visible from the page's world, and a
+   * content script lives in its own. The extension's worker can run code
+   * there; absent this, the JS view reads inline handlers only, and says so.
+   */
+  readPageHandlers?: (eventName: string) => Promise<boolean>;
 }
 
 /** A short human label for an element in the change list. */
@@ -223,6 +234,15 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
    */
   let pseudoStates: edit.PseudoStateController | null = null;
 
+  /**
+   * What the page's own world reported, by element: null until read, once
+   * per page, alongside the page scan. `pageHandlersRead` is whether that
+   * read reached the page at all.
+   */
+  let pageHandlers: WeakMap<Element, script.ScriptHandler[]> | null = null;
+  let pageHandlersRead = false;
+  let readingHandlers = false;
+
   /** The structure drawer's state. Created the first time the drawer opens. */
   let structure: StructureModel | null = null;
   /**
@@ -235,6 +255,49 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
   /** The part of the box model the pointer is on in the panel's diagram. */
   let boxFocus: BoxFocus | null = null;
   let settings = normalizeSettings(options.settings);
+
+  /**
+   * Read, once per page, what the page's scripts have wired to its elements.
+   *
+   * The probe reports by dispatching an event on each element, so the
+   * listener goes up before it runs and comes down after; the reports have
+   * all arrived by the time the worker answers, because the probe dispatches
+   * them synchronously while it runs.
+   */
+  async function ensurePageHandlers(): Promise<void> {
+    const read = options.readPageHandlers;
+    if (!read || pageHandlers || readingHandlers) return;
+    readingHandlers = true;
+
+    const found = new WeakMap<Element, script.ScriptHandler[]>();
+    const eventName = `open-inspector-handlers-${Math.random().toString(36).slice(2, 12)}`;
+    const stop = script.listenForHandlers(win, eventName, found);
+    let ran = false;
+    try {
+      ran = await read(eventName);
+    } catch {
+      ran = false;
+    } finally {
+      stop();
+      readingHandlers = false;
+    }
+
+    if (destroyed) return;
+    pageHandlers = found;
+    pageHandlersRead = ran;
+    structure?.refreshScripts();
+    if (active) scheduleRender();
+  }
+
+  /** One element's handlers: inline ones read here, the rest from the page read. */
+  function handlersOf(element: Element): script.ScriptHandler[] {
+    return script.mergeHandlers(script.inlineHandlers(element), pageHandlers?.get(element) ?? []);
+  }
+
+  /** Whether the tree should mark an element as having JavaScript wired to it. */
+  function hasScript(element: Element): boolean {
+    return (pageHandlers?.has(element) ?? false) || script.inlineHandlers(element).length > 0;
+  }
 
   function ensurePseudoStates(): edit.PseudoStateController {
     pseudoStates ??= edit.createPseudoStateController(doc);
@@ -579,7 +642,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
   function structureApi(): StructureApi {
     return {
       setOpen(open) {
-        structure ??= createStructureModel(doc, { ignore: isOurs });
+        structure ??= createStructureModel(doc, { ignore: isOurs, hasScript });
         structure.setOpen(open);
 
         // Opening shows where you are; it is the one reveal not made by a
@@ -597,6 +660,16 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
 
       showMore(id) {
         structure?.showMore(id);
+        scheduleRender();
+      },
+
+      setAllExpanded(expanded) {
+        structure?.setAllExpanded(expanded);
+        scheduleRender();
+      },
+
+      setScriptOnly(on) {
+        structure?.setScriptOnly(on);
         scheduleRender();
       },
 
@@ -719,6 +792,8 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
 
     data.boundary = boundary;
     data.settings = settings;
+    data.handlers = handlersOf(element);
+    data.handlersRead = pageHandlersRead ? 'page' : 'inline';
 
     // Rebuilt on every paint while the drawer is open, which keeps it true to
     // a page that is changing underneath it. The walk covers only expanded
@@ -814,6 +889,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
      * rides along with the page scan instead of blocking the first paint.
      */
     ensurePseudoStates();
+    void ensurePageHandlers();
 
     scanner ??= createPageScanner({
       doc,
@@ -865,6 +941,8 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     styleIndex = null;
     scanner?.invalidate();
     pageData = undefined;
+    pageHandlers = null;
+    pageHandlersRead = false;
     contrastAudit = null;
     // The page-wide findings were just dropped; fetch the new page's.
     const selected = pinnedElement ?? currentElement;

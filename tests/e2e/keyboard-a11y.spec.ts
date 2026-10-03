@@ -13,7 +13,7 @@ import { PLAYGROUND, openInspector, openTab, panel, pin } from './support/panel.
  */
 
 const KEYBOARD_URL = `${PLAYGROUND}/keyboard.html`;
-const TABS = ['styles', 'color', 'type', 'layout', 'assets', 'markup', 'export', 'svg'] as const;
+const TABS = ['styles', 'color', 'type', 'layout', 'assets', 'markup', 'js', 'export', 'svg'] as const;
 
 interface Finding {
   surface: string;

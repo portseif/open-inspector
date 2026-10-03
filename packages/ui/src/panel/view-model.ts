@@ -1,4 +1,4 @@
-import type { BoxModel, ProbeBoundary } from '@open-inspector/core';
+import type { BoxModel, ProbeBoundary, script } from '@open-inspector/core';
 import type { InspectorSettings } from '../settings.js';
 
 /**
@@ -77,6 +77,8 @@ export interface StructureRowInfo {
   file?: string | undefined;
   /** The full URL behind `file`, when there is one. */
   fileUrl?: string | undefined;
+  /** Has JavaScript wired to it: an event handler of any kind found. */
+  js?: boolean | undefined;
   expandable: boolean;
   expanded: boolean;
   /** "more" rows: how many children are not listed yet. */
@@ -96,6 +98,12 @@ export interface StructureInfo {
   revealed: number;
   /** The row ceiling cut the listing short. */
   truncated: boolean;
+  /** The expand toggle's state: true after "expand all", so it offers to collapse. */
+  allExpanded: boolean;
+  /** Listing only the elements with JavaScript wired to them, flat. */
+  scriptOnly: boolean;
+  /** Whether the JS-only filter can be offered at all. */
+  canFilterScripts: boolean;
 }
 
 /**
@@ -304,6 +312,13 @@ export interface PanelData {
    * own — for the SVG view in Markup.
    */
   svgSource?: string | undefined;
+  /** Event handlers on the element, inline and page-attached, for the JS view. */
+  handlers?: script.ScriptHandler[] | undefined;
+  /**
+   * How far the handler read reached: `page` when the page's own world was
+   * read too, `inline` when only attributes could be.
+   */
+  handlersRead?: 'page' | 'inline' | undefined;
   /** Present only for elements that do not render; the Styles tab shows it instead of a box. */
   source?: SourceInfo | undefined;
   /**
@@ -346,6 +361,8 @@ export interface PageData {
   spacingScale: ScaleInfo;
   breakpoints: BreakpointInfo[];
   assets: AssetEntry[];
+  /** The page's `<script>` elements, for the JS view. */
+  scripts: script.PageScript[];
   /** True when a walk hit its element budget and stopped early. */
   truncated: boolean;
   /** Token exports built from these findings. */
@@ -359,6 +376,7 @@ export type PanelTab =
   | 'layout'
   | 'assets'
   | 'markup'
+  | 'js'
   | 'export'
   | 'svg'
   | 'settings';
@@ -370,6 +388,7 @@ export const PANEL_TABS: ReadonlyArray<{ id: PanelTab; label: string }> = [
   { id: 'layout', label: 'Layout' },
   { id: 'assets', label: 'Assets' },
   { id: 'markup', label: 'Markup' },
+  { id: 'js', label: 'JS' },
   { id: 'export', label: 'Export' },
   { id: 'svg', label: 'SVG' },
 ];

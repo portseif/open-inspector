@@ -1,4 +1,4 @@
-import { probeAtPoint, readBoxModel, describeElement } from '@open-inspector/core';
+import { probeAtPoint, readBoxModel, describeElement, script } from '@open-inspector/core';
 import {
   createInspectorSession,
   type InspectorSession,
@@ -94,6 +94,12 @@ const session = createInspectorSession({
   ...(settings ? { settings } : {}),
   onSettingsChange: (next) => {
     settings = next;
+  },
+  // The playground is the page, so the probe runs right here; the extension
+  // has its worker run it in the page's world instead.
+  readPageHandlers: (eventName) => {
+    script.probeHandlersInPage(eventName, 8000);
+    return Promise.resolve(true);
   },
 });
 

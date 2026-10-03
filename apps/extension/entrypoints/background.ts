@@ -1,10 +1,13 @@
 import { defineBackground } from 'wxt/sandbox';
+import { script } from '@open-inspector/core';
 import {
   INSPECTOR_SCRIPT,
   PING,
   TOGGLE,
+  isHandlersMessage,
   isResizeMessage,
   isSaveMessage,
+  type HandlersResponse,
   type ResizeResponse,
   type ToggleResponse,
 } from '../lib/messages.js';
@@ -150,6 +153,27 @@ async function saveInPage(tabId: number, href: string, filename: string): Promis
   });
 }
 
+/** Enough for any page a person reads; past it the probe stops walking. */
+const HANDLER_ELEMENT_BUDGET = 8000;
+
+/**
+ * Run the handler probe in the page's own world, in the frame that asked.
+ *
+ * Only that world can see what the page's scripts attached. The probe is a
+ * self-contained function from core, serialized by `executeScript`; it reads
+ * and dispatches events, and changes nothing else. Firefox runs `MAIN` world
+ * scripts from 128; before that this rejects, and the panel falls back to
+ * the inline handlers it can read itself.
+ */
+async function readHandlersInPage(tabId: number, frameId: number, eventName: string): Promise<void> {
+  await chrome.scripting.executeScript({
+    target: { tabId, frameIds: [frameId] },
+    world: 'MAIN',
+    args: [eventName, HANDLER_ELEMENT_BUDGET],
+    func: script.probeHandlersInPage,
+  });
+}
+
 /**
  * What each window looked like before the responsive preview touched it.
  *
@@ -270,8 +294,23 @@ export default defineBackground(() => {
       message: unknown,
       sender: {
         tab?: { id?: number | undefined; windowId?: number | undefined } | undefined;
+        frameId?: number | undefined;
       },
-    ): Promise<ResizeResponse> | undefined => {
+    ): Promise<ResizeResponse | HandlersResponse> | undefined => {
+      // Checked, not cast: the event name is dispatched on every element of
+      // the page, so only our own pattern is allowed through.
+      if (isHandlersMessage(message)) {
+        const tabId = sender.tab?.id;
+        if (tabId == null) return Promise.resolve({ ok: false });
+        return readHandlersInPage(tabId, sender.frameId ?? 0, message.eventName).then(
+          (): HandlersResponse => ({ ok: true }),
+          (error: unknown): HandlersResponse => {
+            console.debug('[open-inspector] could not read handlers', error);
+            return { ok: false };
+          },
+        );
+      }
+
       // Checked, not cast: a malformed save would otherwise run an arbitrary
       // href in the page's main world.
       if (isResizeMessage(message)) {

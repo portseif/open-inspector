@@ -16,10 +16,19 @@ export interface StructureApi {
   preview(id: number | null): void;
   /** Make a row's element the selection. */
   select(id: number): void;
+  /** Open every node, or close them all. */
+  setAllExpanded(expanded: boolean): void;
+  /** List only the elements with JavaScript wired to them. */
+  setScriptOnly(on: boolean): void;
 }
 
 /** Pixels per level. Narrow, because the drawer shares the panel's 348px. */
 const INDENT = 12;
+/**
+ * The column the JS marks sit in, at the tree's left edge whatever a row's
+ * depth, so they line up for scanning. Reserved only while some row has one.
+ */
+const MARK_GUTTER = 16;
 
 /** A "more" row shares its parent's id, so keys tell the two apart. */
 function rowKey(row: StructureRowInfo): string {
@@ -66,6 +75,7 @@ export function StructureTree({ info, api }: { info: StructureInfo; api: Structu
   const focusTarget = useRef<string | null>(null);
 
   const { rows } = info;
+  const gutter = rows.some((row) => row.js) ? MARK_GUTTER : 0;
   const selectedKey = info.selectedId !== null ? String(info.selectedId) : null;
   const firstKey = rows[0] ? rowKey(rows[0]) : null;
   const activeKey =
@@ -152,101 +162,144 @@ export function StructureTree({ info, api }: { info: StructureInfo; api: Structu
   }
 
   return (
-    <div
-      ref={list}
-      id="oi-structure"
-      class="structure"
-      role="tree"
-      aria-label="Document structure"
-      onKeyDown={onKeyDown}
-      onPointerLeave={() => api.preview(null)}
-      onFocusOut={(event) => {
-        // Leaving the tree, not moving between its rows.
-        const next = event.relatedTarget as Node | null;
-        if (!next || !list.current?.contains(next)) api.preview(null);
-      }}
-    >
-      {rows.map((row) => {
-        const key = rowKey(row);
-        const indent = { paddingLeft: `${row.depth * INDENT + 4}px` };
+    <>
+      <div class="structure-bar">
+        {info.scriptOnly ? null : (
+          <button
+            type="button"
+            class="icon-btn"
+            onClick={() => api.setAllExpanded(!info.allExpanded)}
+          >
+            <Icon name={info.allExpanded ? 'collapseAll' : 'expandAll'} size={14} />
+            <span class="tab-label">{info.allExpanded ? 'Collapse all' : 'Expand all'}</span>
+          </button>
+        )}
+        {info.canFilterScripts ? (
+          <button
+            type="button"
+            class="js-toggle"
+            aria-pressed={info.scriptOnly}
+            onClick={() => api.setScriptOnly(!info.scriptOnly)}
+          >
+            <Icon name="js" size={16} />
+            <span class="tab-label">Only elements with JS</span>
+          </button>
+        ) : null}
+        {info.scriptOnly ? (
+          <span class="structure-count">
+            {rows.length}
+            {info.truncated ? '+' : ''} with handlers
+          </span>
+        ) : null}
+      </div>
+      <div
+        ref={list}
+        id="oi-structure"
+        class="structure"
+        role="tree"
+        aria-label="Document structure"
+        onKeyDown={onKeyDown}
+        onPointerLeave={() => api.preview(null)}
+        onFocusOut={(event) => {
+          // Leaving the tree, not moving between its rows.
+          const next = event.relatedTarget as Node | null;
+          if (!next || !list.current?.contains(next)) api.preview(null);
+        }}
+      >
+        {rows.map((row) => {
+          const key = rowKey(row);
+          const indent = { paddingLeft: `${row.depth * INDENT + 4 + gutter}px` };
 
-        if (row.kind === 'more') {
+          if (row.kind === 'more') {
+            return (
+              <div
+                key={key}
+                data-key={key}
+                data-kind="more"
+                class="node"
+                role="treeitem"
+                aria-level={row.depth + 1}
+                tabIndex={key === activeKey ? 0 : -1}
+                style={indent}
+                title="List more of these children"
+                onPointerEnter={() => api.preview(null)}
+                onClick={() => {
+                  setFocusKey(key);
+                  api.showMore(row.id);
+                }}
+              >
+                <span class="node-twisty" aria-hidden="true" />
+                <span class="node-more">{row.label}…</span>
+              </div>
+            );
+          }
+
+          const [tag, rest] = splitLabel(row.label);
+
           return (
             <div
               key={key}
               data-key={key}
-              data-kind="more"
+              data-kind={row.kind}
               class="node"
               role="treeitem"
               aria-level={row.depth + 1}
+              aria-expanded={row.expandable ? row.expanded : undefined}
+              aria-selected={row.id === info.selectedId}
               tabIndex={key === activeKey ? 0 : -1}
               style={indent}
-              title="List more of these children"
-              onPointerEnter={() => api.preview(null)}
+              onPointerEnter={() => api.preview(row.id)}
               onClick={() => {
                 setFocusKey(key);
-                api.showMore(row.id);
+                api.select(row.id);
               }}
-            >
-              <span class="node-twisty" aria-hidden="true" />
-              <span class="node-more">{row.label}…</span>
-            </div>
-          );
-        }
-
-        const [tag, rest] = splitLabel(row.label);
-
-        return (
-          <div
-            key={key}
-            data-key={key}
-            data-kind={row.kind}
-            class="node"
-            role="treeitem"
-            aria-level={row.depth + 1}
-            aria-expanded={row.expandable ? row.expanded : undefined}
-            aria-selected={row.id === info.selectedId}
-            tabIndex={key === activeKey ? 0 : -1}
-            style={indent}
-            onPointerEnter={() => api.preview(row.id)}
-            onClick={() => {
-              setFocusKey(key);
-              api.select(row.id);
-            }}
-            onDblClick={() => {
-              if (row.expandable) api.setExpanded(row.id, !row.expanded);
-            }}
-          >
-            <span
-              class="node-twisty"
-              aria-hidden="true"
-              data-open={row.expanded}
-              onClick={(event) => {
-                // Opening a branch is not choosing it.
-                event.stopPropagation();
+              onDblClick={() => {
                 if (row.expandable) api.setExpanded(row.id, !row.expanded);
               }}
             >
-              {row.expandable ? <Icon name="caret" size={10} /> : null}
-            </span>
-            <span class="node-tag">{tag}</span>
-            {rest ? <span class="node-attrs">{rest}</span> : null}
-            {row.text ? <span class="node-text">{row.text}</span> : null}
-            {row.address ? <span class="node-address">{row.address}</span> : null}
-            {row.file ? (
-              <span class="node-file" data-inline={row.fileUrl === undefined} title={row.fileUrl}>
-                {row.file}
+              <span
+                class="node-twisty"
+                aria-hidden="true"
+                data-open={row.expanded}
+                onClick={(event) => {
+                  // Opening a branch is not choosing it.
+                  event.stopPropagation();
+                  if (row.expandable) api.setExpanded(row.id, !row.expanded);
+                }}
+              >
+                {row.expandable ? <Icon name="caret" size={10} /> : null}
               </span>
-            ) : null}
-          </div>
-        );
-      })}
+              <span class="node-tag">{tag}</span>
+              {rest ? <span class="node-attrs">{rest}</span> : null}
+              {row.js ? (
+                <span class="node-js" title="Has event handlers: see the JS tab">
+                  <Icon name="js" size={12} />
+                  <span class="sr-only">, has event handlers</span>
+                </span>
+              ) : null}
+              {row.text ? <span class="node-text">{row.text}</span> : null}
+              {row.address ? <span class="node-address">{row.address}</span> : null}
+              {row.file ? (
+                <span class="node-file" data-inline={row.fileUrl === undefined} title={row.fileUrl}>
+                  {row.file}
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
 
-      {info.truncated ? (
-        <p class="structure-note">
-          The listing stops here to keep the page responsive. Collapse a branch to see further.
-        </p>
-      ) : null}
-    </div>
+        {info.scriptOnly && rows.length === 0 ? (
+          <p class="structure-note">No element on this page has a handler that could be read.</p>
+        ) : null}
+
+        {info.truncated ? (
+          <p class="structure-note">
+            {info.scriptOnly
+              ? 'The search stops here to keep the page responsive.'
+              : 'The listing stops here to keep the page responsive. Collapse a branch to see further.'}
+          </p>
+        ) : null}
+      </div>
+    </>
   );
 }

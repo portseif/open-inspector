@@ -85,13 +85,15 @@ Hover anything, or click to hold it. Arrow keys walk the tree — <kbd>↑</kbd>
 </tr>
 </table>
 
-Plus three more panels:
+Plus five more panels:
 
 | | |
 | --- | --- |
 | **Assets** | Images with the `srcset` candidate the browser really chose, inline SVG lifted out as standalone markup, video, webfonts, Lottie hints |
 | **Markup** | The element as HTML or JSX, with hydration ids, framework attributes and script-set inline styles stripped — source to paste, not a DOM recording |
+| **JS** | The element's event handlers — inline, `on…` properties, React, Vue and jQuery — with their source, and the page's scripts. The structure tree marks every element that has one, and can list only those. Plain `addEventListener` listeners are only visible to DevTools, and the panel says so |
 | **Export** | CSS custom properties, SCSS, Tailwind config, JSON, W3C design tokens, and a markdown handoff written for a coding assistant |
+| **SVG** | Optimize, minify or beautify the selected `<svg>`, an inline SVG asset, or markup pasted in |
 
 ## Do not take our word for it
 

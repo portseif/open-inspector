@@ -1,8 +1,11 @@
 import {
   DEFAULT_STRUCTURE_CHILD_LIMIT,
+  MAX_STRUCTURE_VISITS,
   flattenStructure,
+  matchingStructure,
   structureChildren,
   structurePath,
+  type StructureListing,
   type StructureNode,
 } from '@open-inspector/core';
 import type { StructureInfo, StructureRowInfo } from './view-model.js';
@@ -24,6 +27,15 @@ export interface StructureModel {
   /** Expand everything above an element so its row is listed, and count it as a reveal. */
   reveal(element: Element): void;
   /**
+   * Open every node, as far as a bounded walk reaches, or close them all
+   * back to the document element's children.
+   */
+  setAllExpanded(expanded: boolean): void;
+  /** List only the elements with JavaScript wired to them, flat, in document order. */
+  setScriptOnly(on: boolean): void;
+  /** Forget the JS-only listing, so the next build looks again: the handler read landed. */
+  refreshScripts(): void;
+  /**
    * The element a row stands for. A shadow-root row stands for its host, which
    * is what there is to highlight or select.
    */
@@ -38,6 +50,8 @@ export interface StructureModelOptions {
   /** How many children a node lists at first, and per "more". */
   childLimit?: number;
   maxRows?: number;
+  /** Whether an element has JavaScript wired to it, for the row's JS mark. */
+  hasScript?: (element: Element) => boolean;
 }
 
 const DOCUMENT_FRAGMENT_NODE = 11;
@@ -52,7 +66,16 @@ export function createStructureModel(
   let revealed = 0;
 
   /** Weak, so a node the page removes is not kept alive by having been expanded. */
-  const expanded = new WeakSet<StructureNode>();
+  let expanded = new WeakSet<StructureNode>();
+  /** What the expand toggle last did, so it offers the other next. */
+  let allExpanded = false;
+  let scriptOnly = false;
+  /**
+   * The JS-only listing, kept between builds: it walks the whole document,
+   * and the panel builds on every repaint. Dropped when the filter is turned
+   * on again or the handler read lands.
+   */
+  let scriptListing: StructureListing | null = null;
   const limits = new WeakMap<StructureNode, number>();
 
   /**
@@ -100,6 +123,36 @@ export function createStructureModel(
       else expanded.delete(node);
     },
 
+    setAllExpanded(next) {
+      allExpanded = next;
+      expanded = new WeakSet<StructureNode>();
+      expanded.add(doc.documentElement);
+      if (!next) return;
+
+      // Breadth first, so a page too large to open entirely opens its upper
+      // levels — the part a person scans — rather than one deep branch.
+      const queue: StructureNode[] = [doc.documentElement];
+      let visits = 0;
+      while (queue.length > 0 && visits < MAX_STRUCTURE_VISITS) {
+        const node = queue.shift();
+        if (!node) break;
+        visits += 1;
+        const children = structureChildren(node, options.ignore);
+        if (children.length === 0) continue;
+        expanded.add(node);
+        queue.push(...children);
+      }
+    },
+
+    setScriptOnly(next) {
+      scriptOnly = next;
+      scriptListing = null;
+    },
+
+    refreshScripts() {
+      scriptListing = null;
+    },
+
     showMore(id) {
       const node = listed.get(id);
       if (node) limits.set(node, limitFor(node) + batch);
@@ -130,12 +183,19 @@ export function createStructureModel(
     build(selected) {
       listed.clear();
 
-      const listing = flattenStructure(doc.documentElement, {
-        isExpanded: (node) => expanded.has(node),
-        childLimit: limitFor,
-        ...(options.ignore ? { ignore: options.ignore } : {}),
-        ...(options.maxRows !== undefined ? { maxRows: options.maxRows } : {}),
-      });
+      const hasScript = options.hasScript;
+      const filtering = scriptOnly && hasScript !== undefined;
+      const listing = filtering
+        ? (scriptListing ??= matchingStructure(doc.documentElement, hasScript, {
+            ...(options.ignore ? { ignore: options.ignore } : {}),
+            ...(options.maxRows !== undefined ? { maxRows: options.maxRows } : {}),
+          }))
+        : flattenStructure(doc.documentElement, {
+            isExpanded: (node) => expanded.has(node),
+            childLimit: limitFor,
+            ...(options.ignore ? { ignore: options.ignore } : {}),
+            ...(options.maxRows !== undefined ? { maxRows: options.maxRows } : {}),
+          });
 
       const rows = listing.rows.map((row): StructureRowInfo => {
         if (row.kind === 'more') {
@@ -161,6 +221,7 @@ export function createStructureModel(
           expandable: row.expandable,
           expanded: row.expanded,
         };
+        if (row.kind === 'element' && options.hasScript?.(row.node as Element)) info.js = true;
         if (row.text) info.text = row.text;
         if (row.address) info.address = row.address;
         if (row.file) {
@@ -177,6 +238,9 @@ export function createStructureModel(
         selectedId: selectedId !== null && listed.has(selectedId) ? selectedId : null,
         revealed,
         truncated: listing.truncated,
+        allExpanded,
+        scriptOnly: filtering,
+        canFilterScripts: hasScript !== undefined,
       };
     },
   };

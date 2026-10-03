@@ -43,7 +43,7 @@ reload.
 | Permission | Purpose |
 | --- | --- |
 | `activeTab` | Read the page you are inspecting. Granted by *your click* on the toolbar button or your press of the keyboard shortcut, for that one tab, and revoked by the browser when you navigate. |
-| `scripting` | Inject the inspector into that tab. Without it, `activeTab` cannot be used. |
+| `scripting` | Inject the inspector into that tab. Without it, `activeTab` cannot be used. The same permission runs two small scripts in the page's own world: one that starts a download when you press save, and a read-only one that lists the event handlers the page's scripts attached, for the JS panel. Neither sends anything anywhere. |
 | `storage` | Keep your settings on this device. It reads nothing from any page, and neither browser shows a warning for it at install. |
 
 The extension declares **no host permissions**. Chrome's install screen will

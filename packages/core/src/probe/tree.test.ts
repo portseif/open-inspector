@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   ancestorTrail,
   flattenStructure,
+  matchingStructure,
   readTreePosition,
   stepTree,
   structurePath,
@@ -309,5 +310,48 @@ describe('structurePath', () => {
 
   it('is empty for the document element itself', () => {
     expect(structurePath(document.documentElement)).toEqual([]);
+  });
+});
+
+describe('matchingStructure', () => {
+  beforeEach(() =>
+    fixture(`
+      <main id="m">
+        <ul><li id="a" data-hit>one</li><li id="b">two</li></ul>
+        <section><button id="c" data-hit>go</button></section>
+        <div id="host"></div>
+      </main>
+    `),
+  );
+
+  const hit = (element: Element): boolean => element.hasAttribute('data-hit');
+
+  it('lists every match in document order, flat, collapsed or not', () => {
+    const { rows, truncated } = matchingStructure(at('#m'), hit);
+
+    expect(truncated).toBe(false);
+    expect(rows.map((row) => (row.kind === 'more' ? 'more' : `${row.depth} ${row.label}`))).toEqual([
+      '0 li#a',
+      '0 button#c',
+    ]);
+    expect(rows.every((row) => row.kind === 'element' && !row.expandable)).toBe(true);
+  });
+
+  it('finds matches inside open shadow roots', () => {
+    const root = at('#host').attachShadow({ mode: 'open' });
+    root.innerHTML = '<span id="inner" data-hit>x</span>';
+
+    const labels = matchingStructure(at('#m'), hit).rows.map((row) => row.kind === 'more' ? '' : row.label);
+    expect(labels).toEqual(['li#a', 'button#c', 'span#inner']);
+  });
+
+  it('reports truncation at the row or visit ceiling', () => {
+    expect(matchingStructure(at('#m'), hit, { maxRows: 1 })).toMatchObject({ truncated: true });
+    expect(matchingStructure(at('#m'), hit, { maxVisits: 2 }).truncated).toBe(true);
+  });
+
+  it('leaves out what the caller ignores', () => {
+    const rows = matchingStructure(at('#m'), hit, { ignore: (element) => element.tagName === 'SECTION' }).rows;
+    expect(rows.map((row) => (row.kind === 'more' ? '' : row.label))).toEqual(['li#a']);
   });
 });

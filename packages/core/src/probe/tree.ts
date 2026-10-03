@@ -415,6 +415,52 @@ export function flattenStructure(root: StructureNode, options: StructureOptions)
   return { rows, truncated: false };
 }
 
+/** Nodes a whole-tree walk visits before it stops: a bound on the cost of one search. */
+export const MAX_STRUCTURE_VISITS = 20_000;
+
+/**
+ * Every element in a tree that `match` accepts, as flat rows in document
+ * order: the tree filtered down to what the caller is looking for, with the
+ * ancestors left out.
+ *
+ * Unlike {@link flattenStructure} this walks the whole tree, expanded or not,
+ * since a match can be anywhere — so it stops at a number of nodes visited as
+ * well as at a number of rows, and reports either as truncation.
+ */
+export function matchingStructure(
+  root: StructureNode,
+  match: (element: Element) => boolean,
+  options: { ignore?: (element: Element) => boolean; maxRows?: number; maxVisits?: number } = {},
+): StructureListing {
+  const maxRows = options.maxRows ?? MAX_STRUCTURE_ROWS;
+  const maxVisits = options.maxVisits ?? MAX_STRUCTURE_VISITS;
+  const flat: StructureOptions = {
+    isExpanded: () => false,
+    ...(options.ignore ? { ignore: options.ignore } : {}),
+  };
+  const rows: StructureRow[] = [];
+  const stack: StructureNode[] = [root];
+  let visits = 0;
+
+  while (stack.length > 0) {
+    if (rows.length >= maxRows || visits >= maxVisits) return { rows, truncated: true };
+    const node = stack.pop();
+    if (!node) break;
+    visits += 1;
+
+    const children = structureChildren(node, options.ignore);
+    if (!isShadowRoot(node) && match(node)) {
+      const { row } = nodeRow(node, 0, flat);
+      rows.push({ ...row, expandable: false, expanded: false });
+    }
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push(children[index] as StructureNode);
+    }
+  }
+
+  return { rows, truncated: false };
+}
+
 /**
  * The nodes that must be expanded for an element's row to be listed, from the
  * document element down to its parent.

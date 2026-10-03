@@ -1112,6 +1112,7 @@ export const PANEL_STYLES = `
 
   /* Rows grow to their content and scroll sideways, as deep trees need. */
   .node {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 1px;
@@ -1155,6 +1156,73 @@ export const PANEL_STYLES = `
   .node-file { margin-left: 6px; color: var(--ink-soft); }
   .node-file[data-inline='true'] { color: var(--ink-mute); font-style: italic; }
   .node-more { color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; }
+  /*
+   * The JavaScript logo in its yellow, in a column at the tree's left edge,
+   * so the rows with handlers line up whatever their depth. Placed there,
+   * not written there: in the markup it follows the tag, so a screen reader
+   * names the element before the mark.
+   *
+   * Its letters are cut out of the square, so whatever is behind them draws
+   * them: a dark backing keeps them dark on yellow in both themes, as the
+   * logo is. On a light row they vanished into the page.
+   */
+  .node-js {
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    border-radius: 1px;
+    background: #1b1b1b;
+    color: #f7df1e;
+  }
+
+  /*
+   * Above the tree and outside its scroll, so the controls stay put while it
+   * moves, and stacked over it so the labels they drop below are not covered.
+   */
+  .structure-bar {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 4px;
+  }
+  .structure-bar button { position: relative; }
+  .structure-bar .tab-label {
+    --label-shift: translateY(0);
+    left: 0;
+    top: calc(100% + 6px);
+    transform-origin: top left;
+  }
+  /*
+   * The bar's buttons answer the pointer as the Hide toggle does: a filled
+   * pill, the ink brightening. At rest the JS filter is the badge alone —
+   * grey while off, the accent while on, like every other toggle in the
+   * panel — and its box shows only under the pointer.
+   */
+  .structure-bar .icon-btn,
+  .structure-bar .js-toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--ink-mute);
+  }
+  .structure-bar .icon-btn:hover,
+  .structure-bar .js-toggle:hover { background: var(--bg-sunk); color: var(--ink); }
+  .structure-bar .js-toggle[aria-pressed='true'] { color: var(--accent); }
+  .structure-count {
+    margin-left: auto;
+    font-size: 10.5px;
+    color: var(--ink-mute);
+    font-variant-numeric: tabular-nums;
+  }
 
   .structure-note {
     margin: 4px 8px;
@@ -1209,12 +1277,14 @@ export const PANEL_STYLES = `
    * second to appear and never appears for keyboard users at all.
    */
   .tab-label {
+    /* Where the label sits against its button; the tree's bar puts it below. */
+    --label-shift: translateY(-50%);
     position: absolute;
     left: calc(100% + 8px);
     top: 50%;
     /* Grows out of the button it names, not from its own middle. */
     transform-origin: left center;
-    transform: translateY(-50%) scale(0.97);
+    transform: var(--label-shift) scale(0.97);
     padding: 3px 7px;
     border-radius: 5px;
     background: var(--ink);
@@ -1234,7 +1304,8 @@ export const PANEL_STYLES = `
       transform var(--label-duration, 100ms) var(--ease-out) var(--label-delay, 0s);
   }
   .tab:focus-visible .tab-label,
-  .rail-foot .icon-btn:focus-visible .tab-label { opacity: 1; transform: translateY(-50%); }
+  .rail-foot .icon-btn:focus-visible .tab-label,
+  .structure-bar button:focus-visible .tab-label { opacity: 1; transform: var(--label-shift); }
   /*
    * A short wait before the first label, so sweeping the pointer across the
    * rail does not flash every name on the way. Only where hover is real: a
@@ -1242,9 +1313,11 @@ export const PANEL_STYLES = `
    */
   @media (hover: hover) and (pointer: fine) {
     .tab:hover,
-    .rail-foot .icon-btn:hover { --label-duration: 150ms; --label-delay: 150ms; }
+    .rail-foot .icon-btn:hover,
+    .structure-bar button:hover { --label-duration: 150ms; --label-delay: 150ms; }
     .tab:hover .tab-label,
-    .rail-foot .icon-btn:hover .tab-label { opacity: 1; transform: translateY(-50%); }
+    .rail-foot .icon-btn:hover .tab-label,
+    .structure-bar button:hover .tab-label { opacity: 1; transform: var(--label-shift); }
   }
   /*
    * At once: from the keyboard, which should never wait on an animation, and
@@ -1252,10 +1325,11 @@ export const PANEL_STYLES = `
    * pointer is plainly reading the names.
    */
   .rail:has(:focus-visible) .tab-label,
-  .rail[data-warm='true'] .tab-label { transition: none; }
+  .rail[data-warm='true'] .tab-label,
+  .structure-bar:has(:focus-visible) .tab-label { transition: none; }
   /* Without motion the label still fades, but does not grow. */
   @media (prefers-reduced-motion: reduce) {
-    .tab-label { transform: translateY(-50%); }
+    .tab-label { transform: var(--label-shift); }
   }
 
   .rail-foot {
@@ -1406,7 +1480,10 @@ export const PANEL_STYLES = `
     font-size: 10.5px;
     color: var(--ink-mute);
     padding: 1px 4px;
+    border-radius: 6px;
   }
+  /* Answers the pointer as the Hide toggle does: filled, the ink brightening. */
+  .copy:hover { color: var(--ink); background: var(--bg-sunk); }
 
   /*
    * Hover-to-reveal belongs to dense value rows and nowhere else.
@@ -1598,6 +1675,42 @@ export const PANEL_STYLES = `
   .badge.pass { color: var(--good); background: color-mix(in srgb, var(--good) 13%, transparent); }
   .badge.fail { color: var(--risk); background: color-mix(in srgb, var(--risk) 12%, transparent); }
   .badge.unknown { color: var(--warn); background: color-mix(in srgb, var(--warn) 13%, transparent); }
+
+  /* ---------- js ---------- */
+
+  .js-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .js-item { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .js-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+  .js-event { font-family: var(--mono); font-size: 11px; color: var(--ink); }
+  .js-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-soft);
+  }
+  .js-detail { font-family: var(--mono); font-size: 10px; color: var(--ink-mute); }
+  .js-tag {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--bg-sunk);
+    color: var(--ink-soft);
+    font-size: 10px;
+  }
+  .js-actions { margin-left: auto; display: flex; gap: 2px; }
+  /* A handler is usually a line or two; a code block's panel-filling height is for files. */
+  .js-source { flex: none; min-height: 0; max-height: 180px; }
+  .js-more summary {
+    width: max-content;
+    font-size: 10.5px;
+    color: var(--ink-mute);
+    cursor: pointer;
+  }
+  .js-more summary:hover { color: var(--ink); }
+  .js-more[open] summary { margin-bottom: 4px; }
+  .js-note { margin: 8px 0 0; font-size: 11px; line-height: 1.5; color: var(--ink-mute); }
 
   /* ---------- scale ladder ---------- */
 
