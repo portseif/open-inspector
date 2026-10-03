@@ -759,6 +759,11 @@ function useHeaderDrag(
   };
 }
 
+/** How long the pointer rests on a rail button before its label shows: the hover delay in panel-styles. */
+const LABEL_DELAY_MS = 150;
+/** How long after leaving a labelled button the next label still shows at once. */
+const LABEL_WARM_MS = 300;
+
 /**
  * The section rail, following the WAI-ARIA tabs pattern.
  *
@@ -785,6 +790,40 @@ function Rail({
   children?: ComponentChildren;
 }) {
   const strip = useRef<HTMLElement>(null);
+  const rail = useRef<HTMLElement>(null);
+  const label = useRef({ enteredAt: 0, coolDown: 0 });
+  useEffect(() => () => clearTimeout(label.current.coolDown), []);
+
+  /**
+   * The rail button a pointer event crossed into or out of, or null when it
+   * only moved within one (between the icon and its button, say).
+   */
+  function crossed(event: PointerEvent): HTMLElement | null {
+    const button = (event.target as Element).closest<HTMLElement>('.tab, .rail-foot .icon-btn');
+    return button && !button.contains(event.relatedTarget as Node | null) ? button : null;
+  }
+
+  function enter(event: PointerEvent): void {
+    if (!crossed(event)) return;
+    clearTimeout(label.current.coolDown);
+    label.current.enteredAt = event.timeStamp;
+  }
+
+  /**
+   * Leaving a button whose label was up warms the rail, so the next label
+   * skips its delay and its fade. The data attribute is set directly: it is
+   * presentation only, and not worth a render on every pointer move.
+   */
+  function leave(event: PointerEvent): void {
+    const node = rail.current;
+    if (!node || !crossed(event)) return;
+    const shown =
+      node.dataset['warm'] === 'true' || event.timeStamp - label.current.enteredAt >= LABEL_DELAY_MS;
+    if (!shown) return;
+    node.dataset['warm'] = 'true';
+    label.current.coolDown = window.setTimeout(() => delete node.dataset['warm'], LABEL_WARM_MS);
+  }
+
   /**
    * The rail's one tab stop. With the settings view open no rail tab is
    * selected, and a strip with no stop cannot be reached from the keyboard.
@@ -813,7 +852,7 @@ function Rail({
   }
 
   return (
-    <aside class="rail">
+    <aside class="rail" ref={rail} onPointerOver={enter} onPointerOut={leave}>
       <nav
         class="tabs"
         role="tablist"
@@ -929,11 +968,10 @@ export function Panel({
       type="button"
       class="icon-btn"
       aria-pressed={showKeys}
-      aria-label="Keyboard shortcuts"
-      title="Keyboard shortcuts"
       onClick={() => setShowKeys(!showKeys)}
     >
       <Icon name="help" size={15} />
+      <span class="tab-label">Keyboard shortcuts</span>
     </button>
   );
 
@@ -1012,8 +1050,6 @@ export function Panel({
         <button
           type="button"
           class="icon-btn"
-          aria-label={floating ? `Dock the panel to the ${side}` : 'Move the panel to the other side'}
-          title={floating ? `Dock to the ${side}` : 'Move the panel to the other side'}
           onClick={() =>
             onPlace(
               { ...placement, dock: floating ? side : side === 'right' ? 'left' : 'right' },
@@ -1022,6 +1058,9 @@ export function Panel({
           }
         >
           <Icon name="flip" size={15} />
+          <span class="tab-label">
+            {floating ? `Dock the panel to the ${side}` : 'Move the panel to the other side'}
+          </span>
         </button>
         {onChangeSettings ? (
           <button
@@ -1030,11 +1069,10 @@ export function Panel({
             class="icon-btn"
             aria-pressed={tab === 'settings'}
             aria-controls="oi-tabpanel"
-            aria-label="Settings"
-            title="Settings"
             onClick={() => setTab(tab === 'settings' ? lastContentTab.current : 'settings')}
           >
             <Icon name="settings" size={15} />
+            <span class="tab-label">Settings</span>
           </button>
         ) : null}
       </Rail>

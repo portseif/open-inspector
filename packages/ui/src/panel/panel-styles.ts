@@ -13,6 +13,12 @@
 export const PANEL_STYLES = `
   :host {
     all: initial;
+    /*
+     * The panel's one curve, for everything that enters, leaves or answers a
+     * press: a strong ease-out, which moves at once and settles, so a short
+     * transition still reads as immediate. Color fades use plain ease.
+     */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   }
 
   /*
@@ -521,7 +527,7 @@ export const PANEL_STYLES = `
     left: 0;
     width: 2px;
     background: transparent;
-    transition: background 120ms ease-out;
+    transition: background 120ms ease;
   }
   .panel[data-side='left'] .resize-handle::after,
   .panel[data-side='float'] .resize-handle::after { left: auto; right: 0; }
@@ -549,7 +555,7 @@ export const PANEL_STYLES = `
     bottom: 0;
     height: 2px;
     background: transparent;
-    transition: background 120ms ease-out;
+    transition: background 120ms ease;
   }
   .resize-bottom:hover::after,
   .resize-bottom:focus-visible::after,
@@ -580,11 +586,6 @@ export const PANEL_STYLES = `
   .grip-shade { fill: var(--grip-shade); }
   .grip-light { fill: var(--grip-light); }
 
-  @media (prefers-reduced-motion: reduce) {
-    .resize-handle::after,
-    .resize-bottom::after { transition: none; }
-  }
-
   button {
     font: inherit;
     color: inherit;
@@ -593,6 +594,17 @@ export const PANEL_STYLES = `
     border-radius: 5px;
     cursor: pointer;
     padding: 3px 6px;
+    transition: scale 160ms var(--ease-out);
+  }
+
+  /*
+   * A press gives a little under the pointer, so a click is felt before its
+   * result lands. The scale property rather than transform, so it composes
+   * with the buttons a transform positions. Pointer presses only — a key
+   * press does not set :hover, and keyboard actions should not animate.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    button:not(:disabled):active:hover { scale: 0.97; }
   }
 
   button:hover { background: var(--bg-sunk); }
@@ -1121,7 +1133,11 @@ export const PANEL_STYLES = `
     height: 14px;
     color: var(--ink-mute);
   }
-  .node-twisty .icon { transition: transform 120ms ease; }
+  /*
+   * Turns at once. The tree is walked with the arrow keys as often as with
+   * the pointer, and its rows appear without easing; a twisty still turning
+   * after its children have arrived only reads as lag.
+   */
   .node-twisty[data-open='true'] .icon { transform: rotate(90deg); }
 
   .node-tag { color: var(--ink); }
@@ -1140,10 +1156,6 @@ export const PANEL_STYLES = `
     font-family: var(--sans);
     font-size: 11px;
     color: var(--warn);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .node-twisty .icon { transition: none; }
   }
 
   /* ---------- rail ---------- */
@@ -1195,7 +1207,9 @@ export const PANEL_STYLES = `
     position: absolute;
     left: calc(100% + 8px);
     top: 50%;
-    transform: translateY(-50%);
+    /* Grows out of the button it names, not from its own middle. */
+    transform-origin: left center;
+    transform: translateY(-50%) scale(0.97);
     padding: 3px 7px;
     border-radius: 5px;
     background: var(--ink);
@@ -1206,12 +1220,37 @@ export const PANEL_STYLES = `
     white-space: nowrap;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 100ms ease-out;
+    /*
+     * Timing comes from the button, so hovering can slow the way in without
+     * slowing the way out: a label leaves in 100ms, straight away.
+     */
+    transition:
+      opacity var(--label-duration, 100ms) var(--ease-out) var(--label-delay, 0s),
+      transform var(--label-duration, 100ms) var(--ease-out) var(--label-delay, 0s);
   }
-  .tab:hover .tab-label,
-  .tab:focus-visible .tab-label { opacity: 1; transition-delay: 150ms; }
+  .tab:focus-visible .tab-label,
+  .rail-foot .icon-btn:focus-visible .tab-label { opacity: 1; transform: translateY(-50%); }
+  /*
+   * A short wait before the first label, so sweeping the pointer across the
+   * rail does not flash every name on the way. Only where hover is real: a
+   * tap would leave the label stuck on.
+   */
+  @media (hover: hover) and (pointer: fine) {
+    .tab:hover,
+    .rail-foot .icon-btn:hover { --label-duration: 150ms; --label-delay: 150ms; }
+    .tab:hover .tab-label,
+    .rail-foot .icon-btn:hover .tab-label { opacity: 1; transform: translateY(-50%); }
+  }
+  /*
+   * At once: from the keyboard, which should never wait on an animation, and
+   * once one label is up (Rail marks the rail warm), since by then the
+   * pointer is plainly reading the names.
+   */
+  .rail:has(:focus-visible) .tab-label,
+  .rail[data-warm='true'] .tab-label { transition: none; }
+  /* Without motion the label still fades, but does not grow. */
   @media (prefers-reduced-motion: reduce) {
-    .tab-label { transition: none; }
+    .tab-label { transform: translateY(-50%); }
   }
 
   .rail-foot {
@@ -1221,7 +1260,8 @@ export const PANEL_STYLES = `
     align-items: center;
     gap: 2px;
   }
-  .rail-foot .icon-btn { width: 30px; height: 30px; border-radius: 7px; }
+  /* Labelled the same way as the tabs above them, so it is positioned too. */
+  .rail-foot .icon-btn { position: relative; width: 30px; height: 30px; border-radius: 7px; }
 
   /* ---------- body ---------- */
 
