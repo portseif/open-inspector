@@ -660,19 +660,25 @@ export const PANEL_STYLES = `
     border-left: 1px solid color-mix(in srgb, currentColor 40%, transparent);
   }
 
-  /* Held: the picker is paused, so drop to an outline. */
+  /*
+   * Off: the picker is paused. A toggle like the forced states, so it reads
+   * the same way they do — neutral while off, solid accent while on.
+   */
   .primary-btn[aria-pressed='false'] {
-    background: transparent;
-    color: var(--accent);
+    background: var(--bg-sunk);
+    border-color: transparent;
+    color: var(--ink-soft);
   }
-  .primary-btn[aria-pressed='false']:hover { background: var(--accent-wash); }
-  .primary-btn[aria-pressed='false'] .state { border-left-color: var(--accent); }
+  .primary-btn[aria-pressed='false']:hover {
+    filter: none;
+    background: var(--bg-sunk);
+    color: var(--ink);
+  }
 
   /*
-   * Once an element is held: the same button as an icon. Filled while picking,
-   * because the page cannot be clicked then and that must be obvious; outlined
-   * in the accent while paused, so it still reads as the thing to press next
-   * rather than as one more grey icon in a row of them.
+   * Once an element is held: the same button as an icon, solid while
+   * picking, because the page cannot be clicked then and that must be
+   * obvious.
    */
   .primary-btn[data-compact='true'] {
     /* .primary-btn comes later than .icon-btn and is inline-flex, which left
@@ -682,13 +688,12 @@ export const PANEL_STYLES = `
     padding: 0;
     font-weight: 400;
   }
-  .primary-btn[data-compact='true'][aria-pressed='false'] {
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    background: transparent;
+  /* Outranks .icon-btn[aria-pressed='true'], whose wash would otherwise win. */
+  .primary-btn[data-compact='true'][aria-pressed='true'] {
+    color: var(--on-accent);
+    background: var(--accent);
+    border-color: var(--accent);
   }
-  .primary-btn[data-compact='true'][aria-pressed='false']:hover { background: var(--accent-wash); }
-  .primary-btn[data-compact='true'][aria-pressed='true']:hover { color: var(--on-accent); }
 
   /* ---------- editing ---------- */
 
