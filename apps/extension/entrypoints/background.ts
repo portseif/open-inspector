@@ -1,12 +1,19 @@
 import { defineBackground } from 'wxt/sandbox';
 import { script } from '@open-inspector/core';
 import {
+  DEVTOOLS_ATTACH,
+  DEVTOOLS_PORT,
   INSPECTOR_SCRIPT,
+  PAGE_PORT,
   PING,
   TOGGLE,
+  isDevtoolsHello,
+  isDevtoolsSetupMessage,
+  isDevtoolsStart,
   isHandlersMessage,
   isResizeMessage,
   isSaveMessage,
+  type DevtoolsStatusMessage,
   type HandlersResponse,
   type ResizeResponse,
   type ToggleResponse,
@@ -44,6 +51,10 @@ async function toggleInspectorNow(tabId: number): Promise<void> {
       });
     }
 
+    // A DevTools tab already showing this tab gets the panel, before the
+    // toggle opens it, so it never flashes up in the page first.
+    if (devtoolsPorts.has(tabId)) await attachPage(tabId, false);
+
     const response = (await browser.tabs.sendMessage(tabId, { type: TOGGLE })) as
       | ToggleResponse
       | undefined;
@@ -58,6 +69,107 @@ async function toggleInspectorNow(tabId: number): Promise<void> {
     // console.
     console.debug('[open-inspector] could not toggle on tab', tabId, error);
   }
+}
+
+type Port = ReturnType<typeof browser.runtime.connect>;
+
+/**
+ * The Firefox DevTools tab, joined to the page it shows.
+ *
+ * The tab's panel cannot reach the content script, and the content script
+ * cannot reach DevTools: each holds one port to this worker, and messages
+ * for the same tab are passed straight across. The worker reads none of
+ * them beyond the few it acts on itself.
+ */
+const devtoolsPorts = new Map<number, Port>();
+const pagePorts = new Map<number, Port>();
+
+function tellDevtools(tabId: number, status: DevtoolsStatusMessage): void {
+  devtoolsPorts.get(tabId)?.postMessage(status);
+}
+
+/** Ask the content script to connect, and to start if `activate`. */
+async function attachPage(tabId: number, activate: boolean): Promise<void> {
+  await browser.tabs.sendMessage(tabId, { type: DEVTOOLS_ATTACH, activate });
+}
+
+/**
+ * The DevTools tab's Start button.
+ *
+ * It only starts an inspector already in the page. Injecting one needs
+ * `activeTab`, which Firefox grants for the toolbar button, the shortcut and
+ * menus — not for a click in a DevTools panel — so the tab offers this
+ * button only once the content script is there, and says how to start it
+ * otherwise. The injection attempt stays, for a tab where access is still
+ * held from an earlier toggle.
+ */
+async function startFromDevtools(tabId: number): Promise<void> {
+  try {
+    if (!(await isInjected(tabId))) {
+      await browser.scripting.executeScript({ target: { tabId }, files: [INSPECTOR_SCRIPT] });
+    }
+    await attachPage(tabId, true);
+    await browser.action.setBadgeText({ tabId, text: 'on' });
+    tellDevtools(tabId, { type: 'open-inspector:status', injected: true });
+  } catch (error) {
+    tellDevtools(tabId, {
+      type: 'open-inspector:status',
+      injected: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+function onDevtoolsConnect(port: Port): void {
+  let tabId: number | null = null;
+
+  port.onMessage.addListener((message: unknown) => {
+    // The first message says which tab this DevTools window is showing.
+    if (tabId === null) {
+      if (!isDevtoolsHello(message)) return;
+      const id = message.tabId;
+      tabId = id;
+      devtoolsPorts.get(id)?.disconnect();
+      devtoolsPorts.set(id, port);
+      void isInjected(id).then(async (injected) => {
+        tellDevtools(id, { type: 'open-inspector:status', injected });
+        if (injected) await attachPage(id, false).catch(() => undefined);
+      });
+      return;
+    }
+
+    if (isDevtoolsStart(message)) {
+      void startFromDevtools(tabId);
+      return;
+    }
+    pagePorts.get(tabId)?.postMessage(message);
+  });
+
+  port.onDisconnect.addListener(() => {
+    if (tabId === null || devtoolsPorts.get(tabId) !== port) return;
+    devtoolsPorts.delete(tabId);
+    // Closing DevTools hands the panel back to the page.
+    const page = pagePorts.get(tabId);
+    pagePorts.delete(tabId);
+    page?.disconnect();
+  });
+}
+
+function onPageConnect(port: Port): void {
+  const tabId = port.sender?.tab?.id;
+  if (tabId == null || !devtoolsPorts.has(tabId)) {
+    port.disconnect();
+    return;
+  }
+
+  pagePorts.get(tabId)?.disconnect();
+  pagePorts.set(tabId, port);
+  port.onMessage.addListener((message: unknown) => devtoolsPorts.get(tabId)?.postMessage(message));
+  port.onDisconnect.addListener(() => {
+    if (pagePorts.get(tabId) !== port) return;
+    pagePorts.delete(tabId);
+    tellDevtools(tabId, { type: 'open-inspector:status', injected: false });
+  });
 }
 
 /** The toggle still in flight for each tab. */
@@ -331,6 +443,11 @@ export default defineBackground(() => {
         );
       }
 
+      if (isDevtoolsSetupMessage(message)) {
+        void browser.tabs.create({ url: browser.runtime.getURL('/enable-devtools.html') });
+        return undefined;
+      }
+
       if (!isSaveMessage(message)) return undefined;
       const request = message;
 
@@ -343,6 +460,19 @@ export default defineBackground(() => {
       return undefined;
     },
   );
+
+  browser.runtime.onConnect.addListener((port) => {
+    // Only the DevTools tab's own page may speak for DevTools; a content
+    // script has a tab, and an extension page does not.
+    const fromExtension = port.sender?.url?.startsWith(browser.runtime.getURL('/')) ?? false;
+    if (port.name === DEVTOOLS_PORT && fromExtension && !port.sender?.tab) {
+      onDevtoolsConnect(port);
+    } else if (port.name === PAGE_PORT) {
+      onPageConnect(port);
+    } else {
+      port.disconnect();
+    }
+  });
 
   browser.action.onClicked.addListener((tab) => {
     if (tab.id != null) void toggleInspector(tab.id);

@@ -45,6 +45,7 @@ reload.
 | `activeTab` | Read the page you are inspecting. Granted by *your click* on the toolbar button or your press of the keyboard shortcut, for that one tab, and revoked by the browser when you navigate. |
 | `scripting` | Inject the inspector into that tab. Without it, `activeTab` cannot be used. The same permission runs two small scripts in the page's own world: one that starts a download when you press save, and a read-only one that lists the event handlers the page's scripts attached, for the JS panel. Neither sends anything anywhere. |
 | `storage` | Keep your settings on this device. It reads nothing from any page, and neither browser shows a warning for it at install. |
+| `devtools` (Firefox, optional) | Show the panel as a tab in Firefox DevTools. Not requested at install: it is asked for only if you turn the DevTools tab on in settings, and you can turn it off there again. It grants no access to any page; the inspector still reads a page only while you have it running there. |
 
 The extension declares **no host permissions**. Chrome's install screen will
 show no site access requested. It cannot read a page until you explicitly

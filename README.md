@@ -95,6 +95,8 @@ Plus five more panels:
 | **Export** | CSS custom properties, SCSS, Tailwind config, JSON, W3C design tokens, and a markdown handoff written for a coding assistant |
 | **SVG** | Optimize, minify or beautify the selected `<svg>`, an inline SVG asset, or markup pasted in |
 
+On Firefox, the whole panel can also live in DevTools, as its own tab next to the Inspector, following the element you select there. It's off until you turn it on in settings, and Firefox asks for the `devtools` permission at that point rather than at install.
+
 ## Do not take our word for it
 
 Every claim above is checked by something that fails the build when it stops being true.

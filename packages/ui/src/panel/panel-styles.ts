@@ -152,6 +152,19 @@ export const PANEL_STYLES = `
    */
   .panel[data-side='float'] { right: auto; bottom: 12px; }
   .panel[data-dragging='true'] { user-select: none; }
+  /*
+   * A DevTools tab: the panel is the whole document, so it fills it, square
+   * and flat, with no floating frame around it.
+   */
+  .panel[data-side='embedded'] {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
 
   /* Everything but the rail: header, the tab's content, the footer. */
   .main {

@@ -11,7 +11,7 @@ import {
   type TreeDirection,
 } from '@open-inspector/core';
 import { createOverlay, type BoxFocus, type Overlay } from './overlay.js';
-import { createPanel, type PanelHandle } from './panel/mount.jsx';
+import { createPanel, type PanelHandle, type PanelOptions } from './panel/mount.jsx';
 import { collectElementData } from './panel/collect.js';
 import { createPageScanner, type ContrastAudit, type PageScanner } from './panel/page.js';
 import { saveViaAnchor } from './panel/download.js';
@@ -50,6 +50,12 @@ export interface InspectorSession {
    * reload swaps sessions this way.
    */
   select(element: Element): void;
+  /**
+   * Drop the panel so the next paint builds a new one through
+   * `SessionOptions.surface`: how the panel moves into a DevTools tab and
+   * back without the session, its selection or its edits starting over.
+   */
+  replaceSurface(): void;
   activate(): void;
   deactivate(): void;
   toggle(): boolean;
@@ -107,6 +113,17 @@ export interface SessionOptions {
    * there; absent this, the JS view reads inline handlers only, and says so.
    */
   readPageHandlers?: (eventName: string) => Promise<boolean>;
+  /**
+   * Builds the panel. Defaults to the in-page one; the extension swaps in a
+   * remote one while a DevTools tab is showing it. Asked again whenever the
+   * panel is rebuilt, so the choice can change between paints.
+   */
+  surface?: (options: PanelOptions) => PanelHandle;
+  /**
+   * Opens the page that turns on the Firefox DevTools tab. Supplied by the
+   * Firefox build only; absent, settings does not offer it.
+   */
+  setUpDevtools?: () => void;
 }
 
 /** A short human label for an element in the change list. */
@@ -709,7 +726,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
 
   function ensurePanel(): PanelHandle | null {
     if (!wantsPanel) return null;
-    panel ??= createPanel({
+    panel ??= (options.surface ?? createPanel)({
       doc,
       editing: editingApi(),
       structure: structureApi(),
@@ -729,6 +746,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
       onStep: stepSelection,
       onClose: requestClose,
       onCancelClose: cancelClose,
+      onSetUpDevtools: options.setUpDevtools,
       onPinnedChange: (isPinned) => {
         if (!isPinned) {
           pinnedElement = null;
@@ -1361,6 +1379,11 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     },
     select(element: Element) {
       if (active) selectElement(element);
+    },
+    replaceSurface() {
+      panel?.destroy();
+      panel = null;
+      if (active) scheduleRender();
     },
     activate,
     deactivate,

@@ -56,6 +56,8 @@ export interface PanelOptions {
   editing?: EditingApi;
   /** Omit and the structure drawer is not offered. */
   structure?: StructureApi;
+  /** Opens the page that turns on the Firefox DevTools tab. Omit where there is none. */
+  onSetUpDevtools?: (() => void) | undefined;
 }
 
 /**
@@ -88,7 +90,8 @@ function lockHostGeometry(host: HTMLElement): void {
   lockHost(host, rules);
 }
 
-function applyStyles(shadow: ShadowRoot): void {
+/** The panel's stylesheet, into a shadow root of its own: the page's, or a DevTools tab's. */
+export function applyStyles(shadow: ShadowRoot): void {
   const css = `${PANEL_STYLES}\n${BOX_DIAGRAM_STYLES}`;
 
   if (typeof CSSStyleSheet !== 'undefined' && 'replaceSync' in CSSStyleSheet.prototype) {
@@ -160,6 +163,7 @@ export function createPanel(options: PanelOptions): PanelHandle {
           if (commit) options.onPlacementChange?.(next);
         }}
         onClose={options.onClose}
+        onSetUpDevtools={options.onSetUpDevtools}
         confirmClose={confirmClose}
         onCancelClose={() => options.onCancelClose?.()}
       />

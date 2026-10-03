@@ -66,6 +66,14 @@ export interface PanelProps {
   /** Closing would revert this many edits and is waiting to be confirmed; null when not asking. */
   confirmClose?: number | null;
   onCancelClose?: () => void;
+  /** Opens the page that turns on the Firefox DevTools tab; absent elsewhere. */
+  onSetUpDevtools?: (() => void) | undefined;
+  /**
+   * Fill the host rather than float over a page: the panel as a DevTools
+   * tab, which owns its own space. Nothing to dock, drag, resize or
+   * collapse there, so those controls are left out.
+   */
+  embedded?: boolean;
 }
 
 /**
@@ -906,6 +914,8 @@ export function Panel({
   settingsSaved = false,
   confirmClose = null,
   onCancelClose,
+  onSetUpDevtools,
+  embedded = false,
 }: PanelProps) {
   const [tab, setTab] = useState<PanelTab>('styles');
   /** Where the settings button returns to when pressed again. */
@@ -917,7 +927,9 @@ export function Panel({
   const [showKeys, setShowKeys] = useState(false);
   const body = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
-  const { dragging, handlers: dragHandlers } = useHeaderDrag(placement, view, onPlace, frame);
+  const drag = useHeaderDrag(placement, view, onPlace, frame);
+  const dragging = embedded ? false : drag.dragging;
+  const dragHandlers = embedded ? {} : drag.handlers;
 
   const viewport = viewportOf(view);
   const side = nearestSide(placement, viewport);
@@ -944,13 +956,13 @@ export function Panel({
   const frameProps = {
     ref: frame,
     class: 'panel',
-    'data-side': placement.dock ?? 'float',
+    'data-side': embedded ? 'embedded' : (placement.dock ?? 'float'),
     'data-dragging': dragging,
-    style,
+    style: embedded ? {} : style,
   };
   const edge = placement.dock === 'right' ? 'left' : 'right';
   const resize = (size: PanelSize, commit: boolean) => onPlace({ ...placement, ...size }, commit);
-  const resizeHandle = (
+  const resizeHandle = embedded ? null : (
     <>
       <ResizeHandle kind="side" edge={edge} width={width} height={height} onResize={resize} />
       <ResizeHandle kind="bottom" edge={edge} width={width} height={height} onResize={resize} />
@@ -1048,21 +1060,23 @@ export function Panel({
         }}
       >
         {keysButton}
-        <button
-          type="button"
-          class="icon-btn"
-          onClick={() =>
-            onPlace(
-              { ...placement, dock: floating ? side : side === 'right' ? 'left' : 'right' },
-              true,
-            )
-          }
-        >
-          <Icon name="flip" size={15} />
-          <span class="tab-label">
-            {floating ? `Dock the panel to the ${side}` : 'Move the panel to the other side'}
-          </span>
-        </button>
+        {embedded ? null : (
+          <button
+            type="button"
+            class="icon-btn"
+            onClick={() =>
+              onPlace(
+                { ...placement, dock: floating ? side : side === 'right' ? 'left' : 'right' },
+                true,
+              )
+            }
+          >
+            <Icon name="flip" size={15} />
+            <span class="tab-label">
+              {floating ? `Dock the panel to the ${side}` : 'Move the panel to the other side'}
+            </span>
+          </button>
+        )}
         {onChangeSettings ? (
           <button
             type="button"
@@ -1091,15 +1105,17 @@ export function Panel({
             </span>
             <div class="head-actions">
               <InspectButton picking={picking} onToggle={onTogglePicking} compact />
-              <button
-                type="button"
-                class="icon-btn"
-                aria-label="Collapse"
-                title="Collapse to the edge — the page underneath stays inspectable"
-                onClick={() => setCollapsed(true)}
-              >
-                <Icon name={side === 'right' ? 'collapse' : 'expand'} />
-              </button>
+              {embedded ? null : (
+                <button
+                  type="button"
+                  class="icon-btn"
+                  aria-label="Collapse"
+                  title="Collapse to the edge — the page underneath stays inspectable"
+                  onClick={() => setCollapsed(true)}
+                >
+                  <Icon name={side === 'right' ? 'collapse' : 'expand'} />
+                </button>
+              )}
               <button
                 type="button"
                 class="icon-btn"
@@ -1156,7 +1172,8 @@ export function Panel({
             </label>
             <HideButton />
           </div>
-          <CoverageHint onCollapse={() => setCollapsed(true)} />
+          {/* Covering the page is a floating panel's problem, not a tab's. */}
+          {embedded ? null : <CoverageHint onCollapse={() => setCollapsed(true)} />}
         </header>
 
         <SearchContext.Provider value={query}>
@@ -1200,6 +1217,7 @@ export function Panel({
               settings={data.settings}
               saved={settingsSaved}
               onChange={onChangeSettings}
+              onSetUpDevtools={onSetUpDevtools}
             />
           ) : null}
         </div>

@@ -1,7 +1,10 @@
 import { defineContentScript } from 'wxt/sandbox';
 import { createInspectorSession } from '@open-inspector/ui';
 import { loadSettings, onSettingsChanged, saveSettings } from '../lib/settings.js';
+import { createDevtoolsBridge } from '../lib/devtools-bridge.js';
 import {
+  DEVTOOLS_ATTACH,
+  DEVTOOLS_SETUP,
   HANDLERS,
   PING,
   RESIZE,
@@ -64,7 +67,17 @@ export default defineContentScript({
   runAt: 'document_idle',
 
   main(ctx) {
+    // Firefox only: the DevTools tab. Chrome builds leave it out entirely.
+    const devtools = import.meta.env.FIREFOX ? createDevtoolsBridge(window) : null;
+
     const session = createInspectorSession({
+      ...(devtools
+        ? {
+            surface: devtools.surface,
+            setUpDevtools: () => void browser.runtime.sendMessage({ type: DEVTOOLS_SETUP }),
+          }
+        : {}),
+
       // Downloads have to be started from the page's own world; the worker
       // does it. See lib/messages.ts.
       save: (href, filename) => {
@@ -113,6 +126,9 @@ export default defineContentScript({
           return Promise.resolve({ active: session.active });
         case TOGGLE:
           return Promise.resolve({ active: session.toggle() });
+        case DEVTOOLS_ATTACH:
+          devtools?.attach(session, message.activate);
+          return undefined;
       }
     };
 
@@ -146,6 +162,7 @@ export default defineContentScript({
     ctx.onInvalidated(() => {
       browser.runtime.onMessage.removeListener(handleMessage);
       stopListening();
+      devtools?.destroy();
       session.destroy();
     });
   },

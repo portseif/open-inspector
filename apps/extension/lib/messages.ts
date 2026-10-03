@@ -9,6 +9,16 @@ export const TOGGLE = 'open-inspector:toggle';
 export const SAVE = 'open-inspector:save';
 export const RESIZE = 'open-inspector:resize';
 export const HANDLERS = 'open-inspector:handlers';
+export const DEVTOOLS_ATTACH = 'open-inspector:devtools-attach';
+export const DEVTOOLS_SETUP = 'open-inspector:devtools-setup';
+
+/**
+ * Port names, for the Firefox DevTools tab. The tab's panel and the content
+ * script each hold one port to the worker, and the worker joins the two for
+ * the same tab: neither can reach the other directly.
+ */
+export const DEVTOOLS_PORT = 'open-inspector:devtools';
+export const PAGE_PORT = 'open-inspector:page';
 
 export interface PingMessage {
   type: typeof PING;
@@ -76,7 +86,56 @@ export interface HandlersResponse {
   ok: boolean;
 }
 
-export type InspectorMessage = PingMessage | ToggleMessage | SaveMessage | ResizeMessage;
+/**
+ * Worker → content script: a DevTools tab is showing this tab, so connect to
+ * it and draw the panel there. `activate` starts the inspector too, for the
+ * tab's own Start button; a toolbar toggle starts it separately.
+ */
+export interface DevtoolsAttachMessage {
+  type: typeof DEVTOOLS_ATTACH;
+  activate: boolean;
+}
+
+/** Content script → worker: open the page that turns the DevTools tab on. */
+export interface DevtoolsSetupMessage {
+  type: typeof DEVTOOLS_SETUP;
+}
+
+/** DevTools tab → worker, first on its port: which tab it is showing. */
+export interface DevtoolsHelloMessage {
+  type: 'open-inspector:hello';
+  tabId: number;
+}
+
+/** DevTools tab → worker: start the inspector in the tab, from the tab's button. */
+export interface DevtoolsStartMessage {
+  type: 'open-inspector:start';
+}
+
+/** Worker → DevTools tab: whether the inspector is in the page, and why not. */
+export interface DevtoolsStatusMessage {
+  type: 'open-inspector:status';
+  injected: boolean;
+  error?: string;
+}
+
+/**
+ * Content script → DevTools tab: the event its listener is waiting on. The
+ * tab dispatches it on DevTools' selected element ($0), through
+ * `inspectedWindow.eval`, which is how that element reaches the content
+ * script: Firefox has no selection-changed event for extensions.
+ */
+export interface DevtoolsSelectEventMessage {
+  type: 'open-inspector:select-event';
+  name: string;
+}
+
+export type InspectorMessage =
+  | PingMessage
+  | ToggleMessage
+  | SaveMessage
+  | ResizeMessage
+  | DevtoolsAttachMessage;
 
 export interface ToggleResponse {
   active: boolean;
@@ -104,7 +163,41 @@ export const INSPECTOR_SCRIPT = 'content-scripts/inspector.js';
 export function isInspectorMessage(value: unknown): value is InspectorMessage {
   if (typeof value !== 'object' || value === null) return false;
   const type = (value as { type?: unknown }).type;
+  if (type === DEVTOOLS_ATTACH) return typeof (value as { activate?: unknown }).activate === 'boolean';
   return type === PING || type === TOGGLE || type === SAVE || type === RESIZE;
+}
+
+export function isDevtoolsSetupMessage(value: unknown): value is DevtoolsSetupMessage {
+  return typeof value === 'object' && value !== null && (value as { type?: unknown }).type === DEVTOOLS_SETUP;
+}
+
+export function isDevtoolsHello(value: unknown): value is DevtoolsHelloMessage {
+  if (typeof value !== 'object' || value === null) return false;
+  const message = value as Partial<DevtoolsHelloMessage>;
+  return message.type === 'open-inspector:hello' && Number.isInteger(message.tabId);
+}
+
+export function isDevtoolsStart(value: unknown): value is DevtoolsStartMessage {
+  return typeof value === 'object' && value !== null && (value as { type?: unknown }).type === 'open-inspector:start';
+}
+
+export function isDevtoolsStatus(value: unknown): value is DevtoolsStatusMessage {
+  if (typeof value !== 'object' || value === null) return false;
+  const message = value as Partial<DevtoolsStatusMessage>;
+  return message.type === 'open-inspector:status' && typeof message.injected === 'boolean';
+}
+
+/** The select event's name: ours, with a random suffix, as it is spliced into evaluated code. */
+const SELECT_EVENT = /^open-inspector-select-[a-z0-9]{6,16}$/;
+
+export function isDevtoolsSelectEvent(value: unknown): value is DevtoolsSelectEventMessage {
+  if (typeof value !== 'object' || value === null) return false;
+  const message = value as Partial<DevtoolsSelectEventMessage>;
+  return (
+    message.type === 'open-inspector:select-event' &&
+    typeof message.name === 'string' &&
+    SELECT_EVENT.test(message.name)
+  );
 }
 
 /**

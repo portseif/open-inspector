@@ -23,11 +23,14 @@ export function SettingsSection({
   settings,
   saved,
   onChange,
+  onSetUpDevtools,
 }: {
   settings: InspectorSettings;
   /** Whether a change outlives this session — true in the extension. */
   saved: boolean;
   onChange: (next: Partial<InspectorSettings>) => void;
+  /** Opens the page that turns on the Firefox DevTools tab. Absent where there is none. */
+  onSetUpDevtools?: (() => void) | undefined;
 }) {
   const sample = color.formatAs(SAMPLE, settings.colorFormat);
 
@@ -53,6 +56,20 @@ export function SettingsSection({
           expects.
         </Empty>
       </Group>
+
+      {onSetUpDevtools ? (
+        <Group title="Firefox DevTools">
+          <p class="summary">
+            Show the inspector as a tab in Firefox DevTools, next to the Inspector. Firefox asks
+            for its permission when you turn it on, not before.
+          </p>
+          <div class="export-actions">
+            <button type="button" onClick={onSetUpDevtools}>
+              Set up the DevTools tab
+            </button>
+          </div>
+        </Group>
+      ) : null}
 
       <Empty>
         {saved
