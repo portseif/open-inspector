@@ -24,11 +24,6 @@ export interface StructureApi {
 
 /** Pixels per level. Narrow, because the drawer shares the panel's 348px. */
 const INDENT = 12;
-/**
- * The column the JS marks sit in, at the tree's left edge whatever a row's
- * depth, so they line up for scanning. Reserved only while some row has one.
- */
-const MARK_GUTTER = 16;
 
 /** A "more" row shares its parent's id, so keys tell the two apart. */
 function rowKey(row: StructureRowInfo): string {
@@ -75,7 +70,6 @@ export function StructureTree({ info, api }: { info: StructureInfo; api: Structu
   const focusTarget = useRef<string | null>(null);
 
   const { rows } = info;
-  const gutter = rows.some((row) => row.js) ? MARK_GUTTER : 0;
   const selectedKey = info.selectedId !== null ? String(info.selectedId) : null;
   const firstKey = rows[0] ? rowKey(rows[0]) : null;
   const activeKey =
@@ -208,7 +202,7 @@ export function StructureTree({ info, api }: { info: StructureInfo; api: Structu
       >
         {rows.map((row) => {
           const key = rowKey(row);
-          const indent = { paddingLeft: `${row.depth * INDENT + 4 + gutter}px` };
+          const indent = { paddingLeft: `${row.depth * INDENT + 4}px` };
 
           if (row.kind === 'more') {
             return (

@@ -1112,7 +1112,6 @@ export const PANEL_STYLES = `
 
   /* Rows grow to their content and scroll sideways, as deep trees need. */
   .node {
-    position: relative;
     display: flex;
     align-items: center;
     gap: 1px;
@@ -1157,24 +1156,22 @@ export const PANEL_STYLES = `
   .node-file[data-inline='true'] { color: var(--ink-mute); font-style: italic; }
   .node-more { color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; }
   /*
-   * The JavaScript logo in its yellow, in a column at the tree's left edge,
-   * so the rows with handlers line up whatever their depth. Placed there,
-   * not written there: in the markup it follows the tag, so a screen reader
-   * names the element before the mark.
+   * The JavaScript logo as a prefix to the tag, so a row with handlers is
+   * found at a glance. Placed there by order, not written there: in the
+   * markup it follows the tag, so a screen reader names the element before
+   * the mark.
    *
-   * Its letters are cut out of the square, so whatever is behind them draws
-   * them: a dark backing keeps them dark on yellow in both themes, as the
-   * logo is. On a light row they vanished into the page.
+   * Grey, like the JS filter while it is off: a mark on many rows should
+   * not outshout the tags it sits beside. Its letters are cut out of the
+   * square, so the row's own background draws them, in either theme.
    */
+  .node-twisty { order: -2; }
   .node-js {
-    position: absolute;
-    left: 4px;
-    top: 50%;
-    transform: translateY(-50%);
+    order: -1;
+    flex: none;
     display: grid;
-    border-radius: 1px;
-    background: #1b1b1b;
-    color: #f7df1e;
+    margin-right: 4px;
+    color: var(--ink-mute);
   }
 
   /*
