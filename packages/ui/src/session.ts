@@ -774,8 +774,13 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
 
     pageData = pageScanner.scan(element);
 
-    // Repaint with the deep findings merged in.
-    if (currentElement) show(currentElement, null);
+    /**
+     * Repaint with the deep findings merged in — through `render`, like every
+     * other repaint. Calling `show` here directly used to redraw the plain
+     * highlight a quarter-second after a selection, wiping out a hovered tree
+     * row or box-model part, and drawing it even with the picker off.
+     */
+    scheduleRender();
   }
 
   /**
