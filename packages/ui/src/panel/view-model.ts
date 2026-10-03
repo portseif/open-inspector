@@ -188,14 +188,32 @@ export interface LayoutInfo {
   };
 }
 
+/** One value on a scale, as the scale's ladder draws it. */
+export interface ScaleValue {
+  /** e.g. "16px" */
+  value: string;
+  px: number;
+  count: number;
+  /** False for a value that breaks the scale: an outlier, marked in place. */
+  onScale: boolean;
+  /**
+   * Custom property names for this size: the page's own variables that come
+   * to it, or failing those, the name the Export tab writes for it.
+   */
+  variables: string[];
+  variablesFrom: 'page' | 'export';
+}
+
 export interface ScaleInfo {
   kind: 'detected' | 'none';
   /** e.g. "8px" or "1.25" */
   base?: string | undefined;
+  /** A spacing scale's base in px, which the ladder's ruler ticks off. */
+  step?: number | undefined;
   /** 0-100 */
   conformance?: number | undefined;
-  values?: Array<{ value: string; count: number }>;
-  outliers?: string[] | undefined;
+  /** The most-used values, smallest first. */
+  values?: ScaleValue[];
 }
 
 export interface BreakpointInfo {

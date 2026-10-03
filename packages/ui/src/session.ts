@@ -454,7 +454,12 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
         // Settle the cache key first, or the next page scan would see this
         // page as a new one and discard the audit just run against it.
         dropStaleCaches();
-        scanner ??= createPageScanner({ doc, view: win, ignore: isOurs });
+        scanner ??= createPageScanner({
+          doc,
+          view: win,
+          ignore: isOurs,
+          styleIndex: ensureStyleIndex,
+        });
         contrastAudit = scanner.auditContrast();
         scheduleRender();
       },
@@ -802,7 +807,12 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
      */
     ensurePseudoStates();
 
-    scanner ??= createPageScanner({ doc, view: win, ignore: isOurs });
+    scanner ??= createPageScanner({
+      doc,
+      view: win,
+      ignore: isOurs,
+      styleIndex: ensureStyleIndex,
+    });
     const pageScanner = scanner;
     // The document walk yields between phases, so the page stays responsive
     // while it runs. Anything can happen in those gaps — a close, a new

@@ -1,4 +1,14 @@
-import { a11y, assets, color, describeElement, layout, round, tokens, typography } from '@open-inspector/core';
+import {
+  a11y,
+  assets,
+  color,
+  describeElement,
+  layout,
+  round,
+  tokens,
+  typography,
+} from '@open-inspector/core';
+import type { cascade } from '@open-inspector/core';
 import { BACKDROP_REASONS } from './collect.js';
 import type {
   AssetEntry,
@@ -7,6 +17,7 @@ import type {
   ExportFormat,
   PageData,
   ScaleInfo,
+  ScaleValue,
 } from './view-model.js';
 
 /**
@@ -32,6 +43,11 @@ export interface PageScanOptions {
   view?: Window;
   /** Skip the inspector's own UI, or it would appear in its own results. */
   ignore?: (element: Element) => boolean;
+  /**
+   * The session's stylesheet index, which lists the custom properties the
+   * page declares. Without it the scales fall back to the Export tab's names.
+   */
+  styleIndex?: () => cascade.StyleIndex;
 }
 
 // ── palette ─────────────────────────────────────────────────────────────────
@@ -51,32 +67,108 @@ function toPalette(result: color.PaletteResult): ColorEntry[] {
 
 // ── scales ──────────────────────────────────────────────────────────────────
 
-function toTypeScale(result: typography.TypeScaleResult): ScaleInfo {
+/**
+ * The values a scale's ladder shows: chosen by use, so a page's one-off sizes
+ * do not crowd out the ones it is built from, then laid out smallest first,
+ * the order a scale is read in.
+ */
+function ladder<T extends { px: number; count: number }>(values: T[]): T[] {
+  return [...values]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, MAX_SCALE_VALUES)
+    .sort((a, b) => Math.abs(a.px) - Math.abs(b.px));
+}
+
+type UnnamedValue = Omit<ScaleValue, 'variables' | 'variablesFrom'>;
+
+/**
+ * Each value's custom property names: the page's own variables for that
+ * length, or, when the page names nothing on this scale, the tokens the
+ * Export tab writes — named here exactly as the export names them, from the
+ * same values, so a copied name matches the exported file.
+ *
+ * One set or the other per scale, never mixed. The export numbers its sizes
+ * 1, 2, 3… and a page's own `--space-2` is rarely the same length, so a
+ * mixed ladder could offer `--space-2` for 10px beside the page's
+ * `--space-2` at 8px. A size the page has no variable for stays unnamed,
+ * which is itself the finding.
+ */
+function nameValues(
+  values: UnnamedValue[],
+  kind: tokens.LengthScaleKind,
+  variables: readonly tokens.LengthVariable[],
+): ScaleValue[] {
+  const own = values.map((entry) => tokens.variablesFor(Math.abs(entry.px), variables, kind));
+  if (own.some((names) => names.length > 0)) {
+    return values.map((entry, index) => ({
+      ...entry,
+      variables: own[index] ?? [],
+      variablesFrom: 'page',
+    }));
+  }
+
+  const sizes = values.map((entry) => ({ px: Number.parseFloat(entry.value) }));
+  const exported = new Map(tokens.nameScale(sizes).map(({ name, token }) => [token, name]));
+  const prefix = kind === 'type' ? '--text-' : '--space-';
+  return values.map((entry, index) => {
+    const size = sizes[index];
+    const name = size ? exported.get(size) : undefined;
+    return { ...entry, variables: name ? [`${prefix}${name}`] : [], variablesFrom: 'export' };
+  });
+}
+
+function toTypeScale(
+  result: typography.TypeScaleResult,
+  variables: readonly tokens.LengthVariable[],
+): ScaleInfo {
   if (result.kind === 'none') {
     return { kind: 'none' };
   }
 
+  const off = new Set(result.match.outliers.map((size) => size.px));
   return {
     kind: 'detected',
     base: `${round(result.match.ratio, 3)}× (${result.match.name})`,
     conformance: Math.round(result.match.conformance),
-    values: result.sizes
-      .slice(0, MAX_SCALE_VALUES)
-      .map((size) => ({ value: `${round(size.px)}px`, count: size.count })),
+    values: nameValues(
+      ladder(
+        result.sizes.map((size) => ({
+          value: `${round(size.px)}px`,
+          px: size.px,
+          count: size.count,
+          onScale: !off.has(size.px),
+        })),
+      ),
+      'type',
+      variables,
+    ),
   };
 }
 
-function toSpacingScale(scale: layout.SpacingScale): ScaleInfo {
+function toSpacingScale(
+  scale: layout.SpacingScale,
+  variables: readonly tokens.LengthVariable[],
+): ScaleInfo {
   if (scale.kind !== 'scale') return { kind: 'none' };
 
+  const off = new Set(scale.outliers.map((entry) => entry.value));
   return {
     kind: 'detected',
     base: `${round(scale.base)}px`,
+    step: scale.base,
     conformance: Math.round(scale.conformance * 100),
-    values: scale.values
-      .slice(0, MAX_SCALE_VALUES)
-      .map((entry) => ({ value: `${round(entry.value)}px`, count: entry.count })),
-    outliers: scale.outliers.slice(0, 6).map((entry) => `${round(entry.value)}px`),
+    values: nameValues(
+      ladder(
+        scale.values.map((entry) => ({
+          value: `${round(entry.value)}px`,
+          px: entry.value,
+          count: entry.count,
+          onScale: !off.has(entry.value),
+        })),
+      ),
+      'spacing',
+      variables,
+    ),
   };
 }
 
@@ -498,6 +590,22 @@ export function createPageScanner(options: PageScanOptions = {}): PageScanner {
    * (`scan` on a cold cache) or with a yield to the page between phases
    * (`warm`).
    */
+  /**
+   * The page's length variables, read at the root, where a design system
+   * declares its tokens. Names come from the stylesheet index; values from
+   * the computed style, which has every var() inside them substituted.
+   */
+  function readPageVariables(): tokens.LengthVariable[] {
+    if (!options.styleIndex) return [];
+    const computed = view.getComputedStyle(doc.documentElement);
+    const rootFontPx = Number.parseFloat(computed.fontSize) || 16;
+    return tokens.readLengthVariables(
+      tokens.declaredCustomProperties(options.styleIndex().rules),
+      (name) => computed.getPropertyValue(name),
+      rootFontPx,
+    );
+  }
+
   function* scanPhases(): Generator<void, Omit<PageData, 'breakpoints' | 'exports'>> {
     const root = doc.documentElement;
 
@@ -521,6 +629,9 @@ export function createPageScanner(options: PageScanOptions = {}): PageScanner {
       maxElements: ELEMENT_BUDGET,
       ...(options.ignore ? { shouldSkip: options.ignore } : {}),
     });
+    yield;
+
+    const variables = readPageVariables();
     yield;
 
     const inventory = assets.collectAssets({
@@ -549,8 +660,8 @@ export function createPageScanner(options: PageScanOptions = {}): PageScanner {
     return {
       palette: toPalette(paletteResult),
       fonts: [...fontUsage.values()],
-      typeScale: toTypeScale(typeScale),
-      spacingScale: toSpacingScale(spacing.scale),
+      typeScale: toTypeScale(typeScale, variables),
+      spacingScale: toSpacingScale(spacing.scale, variables),
       assets: toAssets(inventory, collectLoadedUrls(doc, view)),
       // Any walk hitting its budget means the answer is partial. Wikipedia's
       // article page exhausts the element budget, and silently showing a

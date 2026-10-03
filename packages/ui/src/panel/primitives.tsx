@@ -158,15 +158,6 @@ export function Badge({
   return <span class={`badge ${kind}`}>{children}</span>;
 }
 
-export function Meter({ percent }: { percent: number }) {
-  const clamped = Math.max(0, Math.min(100, percent));
-  return (
-    <div class="meter" role="presentation">
-      <span style={{ width: `${clamped}%` }} />
-    </div>
-  );
-}
-
 /** A byte count as people read file sizes. */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

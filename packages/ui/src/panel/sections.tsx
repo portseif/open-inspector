@@ -11,7 +11,6 @@ import {
   CopyButton,
   Empty,
   Group,
-  Meter,
   Rows,
   Swatch,
   copyText,
@@ -74,10 +73,38 @@ function Palette({ entries, format }: { entries: ColorEntry[]; format: color.Col
   );
 }
 
-function Scale({ scale, unit }: { scale: ScaleInfo; unit: string }) {
+/**
+ * The largest a type sample is drawn. Display sizes past it would make one
+ * row taller than the rest of the ladder together; the label carries the
+ * real size.
+ */
+const TYPE_SAMPLE_MAX_PX = 40;
+
+/**
+ * A scale as a ladder: its most-used values, smallest first, each drawn so
+ * the steps can be compared by eye — a type sample at its size, or a bar for
+ * a length of spacing. A value that breaks the scale is marked on its own
+ * row, where it sits among the values it should have been.
+ *
+ * Spacing bars are twice their real length, over a ruler that ticks off the
+ * base unit: a value on the scale ends on a tick, an outlier between two.
+ * Bars too long for the track stop at its end; the label has the length.
+ *
+ * Beside each value, the custom property to write instead of the number,
+ * copied by a click: the page's own when it declares one for that length,
+ * otherwise the Export tab's name, in a quieter ink and explained by the
+ * legend, so it never passes for the page's.
+ */
+function Scale({ scale, unit }: { scale: ScaleInfo; unit: 'type' | 'spacing' }) {
   if (scale.kind === 'none') {
     return <Empty>No consistent {unit} scale — the values do not follow one base.</Empty>;
   }
+
+  const values = scale.values ?? [];
+  const offScale = values.some((value) => !value.onScale);
+  const exportNames = values.some(
+    (value) => value.variablesFrom === 'export' && value.variables.length > 0,
+  );
 
   return (
     <>
@@ -86,30 +113,65 @@ function Scale({ scale, unit }: { scale: ScaleInfo; unit: string }) {
         <span class="row-value">
           <span>{scale.base}</span>
           {scale.conformance != null ? (
-            <span class="row-detail">{scale.conformance}% conform</span>
+            <span class="row-detail">
+              {scale.conformance}% of {unit === 'type' ? 'sizes' : 'uses'} on scale
+            </span>
           ) : null}
         </span>
         <CopyButton text={scale.base ?? ''} />
       </div>
-      {scale.conformance != null ? <Meter percent={scale.conformance} /> : null}
-      {scale.values && scale.values.length > 0 ? (
-        <div class="palette">
-          {scale.values.map((value) => (
-            <span key={value.value} class="chip">
-              <span>{value.value}</span>
-              <span class="count">{value.count}</span>
-            </span>
+      {values.length > 0 ? (
+        <ul
+          class="scale"
+          data-unit={unit}
+          style={scale.step ? { '--scale-tick': `${scale.step * 2}px` } : undefined}
+        >
+          {values.map((value) => (
+            <li key={value.value} class="scale-row" data-off={value.onScale ? undefined : 'true'}>
+              <span class="scale-value">
+                {value.value}
+                {value.onScale ? null : <span class="sr-only"> (off scale)</span>}
+              </span>
+              {unit === 'type' ? (
+                <span
+                  class="scale-sample"
+                  aria-hidden="true"
+                  style={{ fontSize: `${Math.min(value.px, TYPE_SAMPLE_MAX_PX)}px` }}
+                >
+                  Aa
+                </span>
+              ) : (
+                <span class="scale-track" aria-hidden="true">
+                  <span class="scale-bar" style={{ width: `${Math.abs(value.px) * 2}px` }} />
+                </span>
+              )}
+              <span class="scale-vars" data-from={value.variablesFrom}>
+                {value.variables.map((name) => (
+                  <CopyButton key={name} text={name} label={name} />
+                ))}
+              </span>
+              <span class="scale-count">
+                <span class="sr-only">used </span>
+                {value.count}
+                <span class="sr-only"> times</span>
+              </span>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : null}
-      {scale.outliers && scale.outliers.length > 0 ? (
-        <div class="row">
-          <span class="row-label">outliers</span>
-          <span class="row-value">
-            <span>{scale.outliers.join(', ')}</span>
+      {offScale ? (
+        <p class="scale-legend">
+          <span class="scale-key" aria-hidden="true" />
+          {unit === 'type' ? 'off the scale' : `off the ${scale.base} grid`}
+        </p>
+      ) : null}
+      {exportNames ? (
+        <p class="scale-legend">
+          <span class="scale-key-name" aria-hidden="true">
+            --{unit === 'type' ? 'text' : 'space'}
           </span>
-          <CopyButton text={scale.outliers.join(', ')} />
-        </div>
+          names the page has no variable for, as the Export tab writes them
+        </p>
       ) : null}
     </>
   );

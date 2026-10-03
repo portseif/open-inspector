@@ -1594,14 +1594,119 @@ export const PANEL_STYLES = `
   .badge.fail { color: var(--risk); background: color-mix(in srgb, var(--risk) 12%, transparent); }
   .badge.unknown { color: var(--warn); background: color-mix(in srgb, var(--warn) 13%, transparent); }
 
-  .meter {
-    height: 4px;
-    background: var(--bg-sunk);
-    border-radius: 2px;
+  /* ---------- scale ladder ---------- */
+
+  /*
+   * One grid for the whole ladder, its rows on a subgrid, so the names
+   * column is as wide as the widest name in every row and each ruler ends
+   * at the same place. Sized per row, they ended wherever that row's name did.
+   */
+  .scale {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr) auto 28px;
+    gap: 2px 8px;
+    margin: 4px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .scale-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: center;
+    min-height: 18px;
+  }
+  .scale-value {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .scale-count {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--ink-mute);
+    text-align: right;
+  }
+  .scale-sample {
+    font-family: var(--sans);
+    line-height: 1.15;
+    color: var(--ink-soft);
+    white-space: nowrap;
     overflow: hidden;
   }
-  /* Neutral: a conformance figure is a reading, and accent means "changed". */
-  .meter > span { display: block; height: 100%; border-radius: 2px; background: var(--ink-soft); }
+  /*
+   * The ruler: a hairline at every base unit, at the bars' own doubled
+   * scale, so a value on the scale ends exactly on one.
+   */
+  .scale-track {
+    position: relative;
+    height: 10px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--rule) 0 1px,
+      transparent 1px var(--scale-tick, 8px)
+    );
+  }
+  /* Neutral: a reading, not a change, and accent means "changed". */
+  .scale-bar {
+    display: block;
+    max-width: 100%;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--ink-soft);
+  }
+  .scale-row[data-off='true'] .scale-value { color: var(--warn); }
+  .scale-row[data-off='true'] .scale-bar,
+  .scale-legend .scale-key { background: var(--warn); }
+  .scale-row[data-off='true'] .scale-sample { color: var(--warn); }
+  .scale-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 6px 0 0;
+    font-size: 11px;
+    color: var(--ink-mute);
+  }
+  .scale-key { width: 10px; height: 8px; border-radius: 2px; }
+
+  /*
+   * The variable names, each its own copy button. Capped so a long name
+   * cannot squeeze the bar out of its row; the full name is in the title.
+   */
+  .scale-vars { display: flex; gap: 2px; max-width: 150px; min-width: 0; }
+  .scale-vars .copy {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-soft);
+    background: var(--bg-sunk);
+  }
+  .scale-vars .copy:hover { color: var(--ink); }
+  /* The Export tab's names are suggestions, not the page's: a quieter ink, and the legend says so. */
+  .scale-vars[data-from='export'] .copy,
+  .scale-key-name { color: var(--ink-mute); }
+  .scale-key-name { font-family: var(--mono); font-size: 10px; }
+
+  /* Read out, not shown: what color alone would otherwise have to say. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
 
   /*
    * A code block is the point of the view it is in — Markup, Export, a
