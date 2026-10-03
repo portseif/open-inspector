@@ -7,6 +7,7 @@ import { Group } from './primitives.jsx';
 import { Icon, TAB_ICONS } from './icons.jsx';
 import { StructureTree, type StructureApi } from './structure-tree.jsx';
 import { SettingsSection } from './settings-view.jsx';
+import { SvgPasteSection } from './svg-tool.jsx';
 import type { InspectorSettings, PanelPlacement } from '../settings.js';
 import {
   DEFAULT_WIDTH,
@@ -869,6 +870,8 @@ export function Panel({
   const [tab, setTab] = useState<PanelTab>('styles');
   /** Where the settings button returns to when pressed again. */
   const lastContentTab = useRef<PanelTab>('styles');
+  /** Markup pasted into the SVG tab, kept while the panel is open. */
+  const [pastedSvg, setPastedSvg] = useState('');
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
@@ -1151,6 +1154,7 @@ export function Panel({
           {tab === 'assets' ? <AssetsSection data={data} /> : null}
           {tab === 'markup' ? <MarkupSection data={data} /> : null}
           {tab === 'export' ? <ExportSection data={data} /> : null}
+          {tab === 'svg' ? <SvgPasteSection text={pastedSvg} onText={setPastedSvg} /> : null}
           {tab === 'settings' && onChangeSettings && data.settings ? (
             <SettingsSection
               settings={data.settings}

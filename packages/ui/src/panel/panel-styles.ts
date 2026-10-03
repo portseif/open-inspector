@@ -1570,7 +1570,50 @@ export const PANEL_STYLES = `
    * the block grows inside its group. Past that it scrolls on its own. The
    * minimums keep it usable when the content above it is tall.
    */
-  .body > .group:has(> pre) { flex: 1 1 0; min-height: 180px; }
+  .body > .group:has(> pre),
+  .body > .group:has(.svg-tool) { flex: 1 1 0; min-height: 180px; }
+
+  /* ---------- svg tool ---------- */
+
+  .svg-tool { display: flex; flex-direction: column; gap: 6px; flex: 1 1 0; min-height: 0; }
+  .svg-size {
+    margin: 0;
+    font-size: 11px;
+    color: var(--ink-mute);
+    font-variant-numeric: tabular-nums;
+  }
+  /* A checkerboard behind the preview, so transparent parts read as transparent. */
+  .svg-preview {
+    display: block;
+    height: 140px;
+    padding: 8px;
+    border-radius: 6px;
+    background: repeating-conic-gradient(var(--bg-sunk) 0 25%, var(--bg-raised) 0 50%) 0 0 / 12px 12px;
+  }
+  /*
+   * Sized to the box, not to the image: an SVG with only a viewBox has no
+   * size of its own. The box is a block of fixed height so that 100% has
+   * something definite to resolve against; in a grid row sized by its
+   * content it fell back to the image's ratio and overflowed.
+   */
+  .svg-preview img { display: block; width: 100%; height: 100%; object-fit: contain; }
+  .svg-input {
+    width: 100%;
+    min-height: 120px;
+    resize: vertical;
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--bg-sunk);
+    border: 1px solid var(--rule-strong);
+    border-radius: 6px;
+  }
+  .svg-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* Under an asset row: a bounded block, since the list goes on below it. */
+  .asset-svg { padding: 4px 0 10px; }
+  .asset-svg .svg-tool pre { flex: none; max-height: 240px; }
 
   pre {
     flex: 1 1 0;

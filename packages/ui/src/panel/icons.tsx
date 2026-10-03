@@ -36,6 +36,8 @@ const PATHS = {
   eyeOff: 'M1.8 8S4 3.8 8 3.8 14.2 8 14.2 8 12 12.2 8 12.2 1.8 8 1.8 8zM8 6.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6zM2.5 13.5l11-11',
   search: 'M7 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM10 10l3 3',
   coffee: 'M3 6.5h8V10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM11 7.5h1a1.5 1.5 0 0 1 0 3h-1M5.5 2.5V4M8.5 2.5V4',
+  // A bezier curve between two anchor points: vector artwork.
+  svg: 'M4 12C5.5 6.5 10.5 9.5 12 4M2.5 11h3v3h-3zM10.5 2.5h3v3h-3z',
   // An eight-tooth cog around a hub. Teeth with flat tops and a solid body,
   // because thin spokes round a small circle read as a sun — the light/dark
   // toggle — rather than as settings.
@@ -73,5 +75,6 @@ export const TAB_ICONS: Record<PanelTab, IconName> = {
   assets: 'assets',
   markup: 'markup',
   export: 'export',
+  svg: 'svg',
   settings: 'settings',
 };

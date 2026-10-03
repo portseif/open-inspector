@@ -6,12 +6,23 @@ import type {
   RuleInfo,
   ScaleInfo,
 } from './view-model.js';
-import { Badge, CopyButton, Empty, Group, Meter, Rows, Swatch, copyText } from './primitives.jsx';
+import {
+  Badge,
+  CopyButton,
+  Empty,
+  Group,
+  Meter,
+  Rows,
+  Swatch,
+  copyText,
+  formatBytes,
+} from './primitives.jsx';
 import { ChangesSection, EditableRows, PseudoStates, useEditing } from './editing.jsx';
 import { BoxDiagram } from './box-diagram.jsx';
-import { assetUrlList, downloadAsset } from './download.js';
-import { color } from '@open-inspector/core';
+import { assetUrlList, downloadAsset, safeFilename, withExtension } from './download.js';
+import { color, svg } from '@open-inspector/core';
 import { useSearch } from './search.jsx';
+import { SvgTool } from './svg-tool.jsx';
 
 /** Shared shape: every section renders from `PanelData` and nothing else. */
 interface SectionProps {
@@ -585,61 +596,81 @@ export function LayoutSection({ data }: SectionProps) {
  * `icon.svg` entries is a list of twelve identical rows. Seeing the thing is
  * the entire point of an asset browser.
  */
+/** An asset's SVG markup, when it is one that can be read without a request. */
+function svgMarkupOf(asset: AssetEntry): string | null {
+  if (asset.kind === 'inline svg') return asset.url;
+  return svg.decodeSvgDataUri(asset.url);
+}
+
 function AssetRow({ asset }: { asset: AssetEntry }) {
   const editing = useEditing();
   const [failed, setFailed] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const showImage = asset.preview && !failed;
+  const markup = svgMarkupOf(asset);
 
   return (
-    <div class="asset">
-      <div class="asset-thumb" data-empty={!showImage}>
-        {showImage ? (
-          <img src={asset.preview} alt="" loading="lazy" onError={() => setFailed(true)} />
-        ) : (
-          <span class="asset-thumb-note">{failed ? 'unavailable' : (asset.noPreview ?? '—')}</span>
-        )}
-      </div>
+    <>
+      <div class="asset">
+        <div class="asset-thumb" data-empty={!showImage}>
+          {showImage ? (
+            <img src={asset.preview} alt="" loading="lazy" onError={() => setFailed(true)} />
+          ) : (
+            <span class="asset-thumb-note">{failed ? 'unavailable' : (asset.noPreview ?? '—')}</span>
+          )}
+        </div>
 
-      <div class="asset-body">
-        <span class="asset-name" title={asset.url || asset.name}>
-          {asset.name}
-        </span>
-        <span class="asset-meta">
-          {[
-            asset.dimensions,
-            asset.bytes != null ? formatBytes(asset.bytes) : null,
-            asset.usage && asset.usage > 1 ? `${asset.usage}×` : null,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </span>
-      </div>
+        <div class="asset-body">
+          <span class="asset-name" title={asset.url || asset.name}>
+            {asset.name}
+          </span>
+          <span class="asset-meta">
+            {[
+              asset.dimensions,
+              asset.bytes != null ? formatBytes(asset.bytes) : null,
+              asset.usage && asset.usage > 1 ? `${asset.usage}×` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        </div>
 
-      <div class="asset-actions">
-        {asset.url ? (
-          <button
-            type="button"
-            class="copy"
-            title={
-              asset.kind === 'inline svg'
-                ? 'Save as an .svg file'
-                : 'Save this file (the browser fetches it, from cache where it can)'
-            }
-            onClick={() => downloadAsset(asset, editing?.save)}
-          >
-            save
-          </button>
-        ) : null}
-        <CopyButton text={asset.url || asset.name} label="copy" />
+        <div class="asset-actions">
+          {asset.url ? (
+            <button
+              type="button"
+              class="copy"
+              title={
+                asset.kind === 'inline svg'
+                  ? 'Save as an .svg file'
+                  : 'Save this file (the browser fetches it, from cache where it can)'
+              }
+              onClick={() => downloadAsset(asset, editing?.save)}
+            >
+              save
+            </button>
+          ) : null}
+          <CopyButton text={asset.url || asset.name} label="copy" />
+          {markup ? (
+            <button
+              type="button"
+              class="copy"
+              aria-expanded={optimizing}
+              title="Optimize, minify or beautify this SVG"
+              onClick={() => setOptimizing(!optimizing)}
+            >
+              optimize
+            </button>
+          ) : null}
+        </div>
       </div>
-    </div>
+      {markup && optimizing ? (
+        <div class="asset-svg">
+          <SvgTool source={markup} filename={withExtension(safeFilename(asset.name, 'image'), 'svg')} />
+        </div>
+      ) : null}
+    </>
   );
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function AssetsSection({ data }: SectionProps) {
@@ -738,11 +769,13 @@ export function SourceSection({ data }: SectionProps) {
  * their codebase. See core/markup for exactly what is dropped.
  */
 export function MarkupSection({ data }: SectionProps) {
-  const [dialect, setDialect] = useState<'html' | 'jsx'>('html');
+  const [chosen, setDialect] = useState<'html' | 'jsx' | 'svg'>('html');
 
   if (!data.markup) return <Empty>Select an element to see its markup.</Empty>;
 
-  const text = data.markup[dialect];
+  // The SVG view exists only while an <svg> is selected; move off one and
+  // the panel falls back to HTML rather than showing nothing.
+  const dialect = chosen === 'svg' && !data.svgSource ? 'html' : chosen;
 
   return (
     <>
@@ -754,21 +787,46 @@ export function MarkupSection({ data }: SectionProps) {
           <button type="button" aria-pressed={dialect === 'jsx'} onClick={() => setDialect('jsx')}>
             JSX
           </button>
+          {data.svgSource ? (
+            <button
+              type="button"
+              aria-pressed={dialect === 'svg'}
+              title="Optimize, minify or beautify this SVG"
+              onClick={() => setDialect('svg')}
+            >
+              SVG
+            </button>
+          ) : null}
         </div>
       </Group>
 
-      <Group title="Markup">
-        <div class="export-actions">
-          <CopyButton text={text} label="copy" />
-        </div>
-        {/* Focusable, so a keyboard user can scroll a long export. */}
-        <pre tabIndex={0}>{text}</pre>
-        <Empty>
-          Framework attributes, scripts and inline styles are stripped, and the subtree stops at six
-          levels — this is markup to paste, not a recording of the live DOM.
-        </Empty>
-      </Group>
+      {dialect === 'svg' && data.svgSource ? (
+        <Group title="SVG">
+          <SvgTool
+            source={data.svgSource}
+            filename={withExtension(safeFilename(data.selectorLabel, 'image'), 'svg')}
+          />
+        </Group>
+      ) : (
+        <MarkupText text={data.markup[dialect === 'jsx' ? 'jsx' : 'html']} />
+      )}
     </>
+  );
+}
+
+function MarkupText({ text }: { text: string }) {
+  return (
+    <Group title="Markup">
+      <div class="export-actions">
+        <CopyButton text={text} label="copy" />
+      </div>
+      {/* Focusable, so a keyboard user can scroll a long export. */}
+      <pre tabIndex={0}>{text}</pre>
+      <Empty>
+        Framework attributes, scripts and inline styles are stripped, and the subtree stops at six
+        levels — this is markup to paste, not a recording of the live DOM.
+      </Empty>
+    </Group>
   );
 }
 

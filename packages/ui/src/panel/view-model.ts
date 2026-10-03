@@ -281,6 +281,11 @@ export interface PanelData {
 
   /** Ancestor chain and stepping affordances for the selected element. */
   tree?: TreeInfo | undefined;
+  /**
+   * The `<svg>` the selection is, or is drawn in, as markup that stands on its
+   * own — for the SVG view in Markup.
+   */
+  svgSource?: string | undefined;
   /** Present only for elements that do not render; the Styles tab shows it instead of a box. */
   source?: SourceInfo | undefined;
   /**
@@ -337,6 +342,7 @@ export type PanelTab =
   | 'assets'
   | 'markup'
   | 'export'
+  | 'svg'
   | 'settings';
 
 export const PANEL_TABS: ReadonlyArray<{ id: PanelTab; label: string }> = [
@@ -347,4 +353,5 @@ export const PANEL_TABS: ReadonlyArray<{ id: PanelTab; label: string }> = [
   { id: 'assets', label: 'Assets' },
   { id: 'markup', label: 'Markup' },
   { id: 'export', label: 'Export' },
+  { id: 'svg', label: 'SVG' },
 ];

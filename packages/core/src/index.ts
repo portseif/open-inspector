@@ -79,3 +79,4 @@ export * as a11y from './a11y/index.js';
 export * as tokens from './tokens/index.js';
 export * as edit from './edit/index.js';
 export * as markup from './markup/index.js';
+export * as svg from './svg/index.js';

@@ -1,5 +1,6 @@
 import {
   a11y,
+  assets,
   cascade,
   color,
   describeElement,
@@ -492,6 +493,13 @@ function readSource(element: Element): SourceInfo | undefined {
   return info;
 }
 
+/** The nearest `<svg>` an element is, or is drawn in. */
+function svgRootOf(element: Element): SVGSVGElement | null {
+  if (element.namespaceURI !== 'http://www.w3.org/2000/svg') return null;
+  if (element.localName === 'svg') return element as SVGSVGElement;
+  return (element as SVGElement).ownerSVGElement;
+}
+
 // ── entry point ─────────────────────────────────────────────────────────────
 
 /** Build the breadcrumb and stepping flags for one element. */
@@ -577,6 +585,10 @@ export function collectElementData(
 
   const source = readSource(element);
   if (source) data.source = source;
+  // The whole drawing, from the <svg> itself or anything inside it: a <path>
+  // on its own is not a file, but the icon it belongs to is.
+  const drawing = svgRootOf(element);
+  if (drawing) data.svgSource = assets.serializeInlineSvg(drawing);
   if (options.colorFormat) applyColorFormat(data, options.colorFormat);
   return data;
 }

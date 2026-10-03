@@ -13,7 +13,7 @@ import { PLAYGROUND, openInspector, openTab, panel, pin } from './support/panel.
  */
 
 const KEYBOARD_URL = `${PLAYGROUND}/keyboard.html`;
-const TABS = ['styles', 'color', 'type', 'layout', 'assets', 'markup', 'export'] as const;
+const TABS = ['styles', 'color', 'type', 'layout', 'assets', 'markup', 'export', 'svg'] as const;
 
 interface Finding {
   surface: string;
@@ -196,12 +196,13 @@ test.describe('keyboard only', () => {
     await expect(color).toBeFocused();
     await expect(styles).toHaveAttribute('tabindex', '-1');
 
+    // SVG is the last tab on the rail.
     await page.keyboard.press('End');
-    await expect(panel(page).locator('#oi-tab-export')).toBeFocused();
+    await expect(panel(page).locator('#oi-tab-svg')).toBeFocused();
     await page.keyboard.press('ArrowRight'); // wraps
     await expect(styles).toBeFocused();
     await page.keyboard.press('ArrowLeft'); // wraps back
-    await expect(panel(page).locator('#oi-tab-export')).toHaveAttribute('aria-selected', 'true');
+    await expect(panel(page).locator('#oi-tab-svg')).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('Home');
     await expect(styles).toHaveAttribute('aria-selected', 'true');
 
