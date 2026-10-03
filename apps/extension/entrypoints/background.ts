@@ -475,7 +475,9 @@ export default defineBackground(() => {
   });
 
   browser.action.onClicked.addListener((tab) => {
-    if (tab.id != null) void toggleInspector(tab.id);
+    // Zen hands over no tab when the click lands on its placeholder "empty
+    // tab", which it keeps out of every extension's reach.
+    if (tab?.id != null) void toggleInspector(tab.id);
   });
 
   browser.commands.onCommand.addListener((command) => {
@@ -490,6 +492,9 @@ export default defineBackground(() => {
   // activeTab is revoked on navigation, so the injected script goes with it.
   // Clear the badge rather than leaving a stale "on".
   browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    // Zen reports updates for tab -1, which setBadgeText rejects before it
+    // returns a promise, so the catch below would never see it.
+    if (tabId < 0) return;
     if (changeInfo.status === 'loading') {
       void browser.action.setBadgeText({ tabId, text: '' }).catch(() => undefined);
     }

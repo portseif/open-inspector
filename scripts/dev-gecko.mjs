@@ -35,7 +35,13 @@ import webExt from 'web-ext';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const OUTPUT = join(ROOT, '.output/firefox-mv3');
 const PLAYGROUND_PORT = 5178;
-const PLAYGROUND_URL = `http://localhost:${PLAYGROUND_PORT}/`;
+/**
+ * The playground's e2e page, not its front page: the front page runs its own
+ * copy of the inspector from source, so pressing its Inspect button there
+ * opens a panel that is not the extension's and has none of its
+ * extension-only parts. On this page the only inspector is the extension's.
+ */
+const PLAYGROUND_URL = `http://localhost:${PLAYGROUND_PORT}/e2e.html`;
 
 /** Where Zen installs itself, per platform. Elsewhere, pass --browser or GECKO_BINARY. */
 const ZEN_BINARIES = {
