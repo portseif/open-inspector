@@ -43,6 +43,7 @@ export {
   readTreePosition,
   stepTree,
   DEFAULT_TRAIL_DEPTH,
+  fileName,
   flattenStructure,
   structureChildren,
   structurePath,

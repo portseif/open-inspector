@@ -3,6 +3,7 @@ import {
   cascade,
   color,
   describeElement,
+  fileName,
   formatDimensions,
   layout,
   readBoxModel,
@@ -389,14 +390,7 @@ function isAuthored(value: string): boolean {
 /** Shorten a stylesheet URL to something that fits in the panel. */
 function sourceLabel(sheet: { href?: string | null } | null | undefined): string {
   const href = sheet?.href;
-  if (!href) return 'inline';
-  try {
-    const url = new URL(href);
-    const file = url.pathname.split('/').filter(Boolean).pop();
-    return file ?? url.hostname;
-  } catch {
-    return href;
-  }
+  return href ? fileName(href) : 'inline';
 }
 
 /**
