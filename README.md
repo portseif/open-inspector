@@ -32,7 +32,7 @@ This one asks for nothing. Chrome's own install screen will tell you the same th
   <img src="docs/media/permissions-light.png" alt="Open Inspector requests no site access; the established alternatives request read and change all your data on all websites." width="900">
 </picture>
 
-The manifest declares `activeTab` and `scripting`, and no `host_permissions` key exists. `activeTab` is granted by *your* click, for one tab, and revoked by the browser the moment you navigate away.
+The manifest declares `activeTab`, `scripting` and `storage`, and no `host_permissions` key exists. `activeTab` is granted by *your* click, for one tab, and revoked by the browser the moment you navigate away. `storage` keeps your settings on this device and nothing about any page.
 
 ## What it shows you
 

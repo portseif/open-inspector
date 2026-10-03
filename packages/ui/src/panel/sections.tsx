@@ -18,25 +18,38 @@ interface SectionProps {
   data: PanelData;
 }
 
-function ColorChip({ entry }: { entry: ColorEntry }) {
+/** A colour entry written in the chosen notation; hex when that one is missing. */
+function colorText(entry: ColorEntry, format: color.ColorFormat): string {
+  return entry[format] ?? entry.hex;
+}
+
+function ColorChip({ entry, format }: { entry: ColorEntry; format: color.ColorFormat }) {
+  const text = colorText(entry, format);
   return (
     <button
       type="button"
       class="chip"
-      title={`${entry.hex} · ${entry.role}${entry.merged ? ` · ${entry.merged} similar merged` : ''}`}
-      onClick={(event) => void copyText(entry.hex, event.currentTarget)}
+      title={`${text} · ${entry.role}${entry.merged ? ` · ${entry.merged} similar merged` : ''}`}
+      onClick={(event) => void copyText(text, event.currentTarget)}
     >
       <Swatch color={entry.hex} />
-      <span>{entry.hex}</span>
+      <span>{text}</span>
       {entry.usage != null ? <span class="count">{entry.usage}</span> : null}
     </button>
   );
 }
 
-function Palette({ entries }: { entries: ColorEntry[] }) {
+function Palette({ entries, format }: { entries: ColorEntry[]; format: color.ColorFormat }) {
   const query = useSearch().trim().toLowerCase();
+  // Searchable in every notation, so a hex pasted from a design file still
+  // finds the colour while the panel shows it as oklch.
   const visible = query
-    ? entries.filter((entry) => `${entry.hex} ${entry.role}`.toLowerCase().includes(query))
+    ? entries.filter((entry) =>
+        [entry.hex, entry.hexa, entry.rgb, entry.hsl, entry.oklch, entry.role]
+          .join(' ')
+          .toLowerCase()
+          .includes(query),
+      )
     : entries;
 
   if (visible.length === 0) return null;
@@ -44,7 +57,7 @@ function Palette({ entries }: { entries: ColorEntry[] }) {
   return (
     <div class="palette">
       {visible.map((entry) => (
-        <ColorChip key={entry.hex + entry.role} entry={entry} />
+        <ColorChip key={entry.hex + entry.role} entry={entry} format={format} />
       ))}
     </div>
   );
@@ -275,6 +288,7 @@ function Eyedropper() {
         <Rows
           fields={[
             { label: 'hex', value: formats.hex, swatch: formats.hex, copy: formats.hex },
+            { label: 'hexa', value: formats.hexa, copy: formats.hexa },
             { label: 'rgb', value: formats.rgb, copy: formats.rgb },
             { label: 'hsl', value: formats.hsl, copy: formats.hsl },
             { label: 'oklch', value: formats.oklch, copy: formats.oklch },
@@ -358,6 +372,7 @@ function ContrastAuditSection() {
 
 export function ColorSection({ data }: SectionProps) {
   const { contrast, page } = data;
+  const format = data.settings?.colorFormat ?? 'hex';
 
   return (
     <>
@@ -372,9 +387,10 @@ export function ColorSection({ data }: SectionProps) {
           <EditableRows
             fields={data.colors.map((entry) => ({
               label: entry.role,
-              value: entry.hex,
-              detail: entry.rgb,
-              copy: entry.hex,
+              value: colorText(entry, format),
+              // The second notation beside it: hex, or rgb when hex is the first.
+              detail: format === 'hex' || format === 'hexa' ? entry.rgb : entry.hex,
+              copy: colorText(entry, format),
               swatch: entry.hex,
               property: entry.property,
             }))}
@@ -437,7 +453,7 @@ export function ColorSection({ data }: SectionProps) {
         ) : page.palette.length === 0 ? (
           <Empty>No colours found.</Empty>
         ) : (
-          <Palette entries={page.palette} />
+          <Palette entries={page.palette} format={format} />
         )}
       </Group>
     </>

@@ -39,6 +39,7 @@ export interface PageScanOptions {
 function toPalette(result: color.PaletteResult): ColorEntry[] {
   return result.entries.slice(0, MAX_PALETTE).map((entry) => ({
     hex: entry.formats.hex,
+    hexa: entry.formats.hexa,
     rgb: entry.formats.rgb,
     hsl: entry.formats.hsl,
     oklch: entry.formats.oklch,
@@ -301,7 +302,11 @@ export function toAssets(
 
 // ── token exports ───────────────────────────────────────────────────────────
 
-function buildExports(page: Omit<PageData, 'exports'>, source: string): ExportFormat[] {
+function buildExports(
+  page: Omit<PageData, 'exports'>,
+  source: string,
+  format: color.ColorFormat | undefined,
+): ExportFormat[] {
   const numeric = (values: ScaleInfo['values']): Array<{ px: number; usage?: number }> =>
     (values ?? [])
       .map((entry) => ({ px: Number.parseFloat(entry.value), usage: entry.count }))
@@ -311,6 +316,7 @@ function buildExports(page: Omit<PageData, 'exports'>, source: string): ExportFo
     colors: page.palette.map((entry) => ({
       hex: entry.hex,
       rgb: entry.rgb,
+      value: format ? (entry[format] ?? entry.hex) : undefined,
       usage: entry.usage,
       role: entry.role,
     })),
@@ -446,7 +452,8 @@ function yieldToPage(view: Window): Promise<void> {
 
 export interface PageScanner {
   /** Full findings for one element. Cheap after the first call, or after `warm`. */
-  scan(element: Element): PageData;
+  /** `format` is the notation colours are written in for the token exports. */
+  scan(element: Element, format?: color.ColorFormat): PageData;
   /**
    * Do the document-wide walk ahead of `scan`, yielding to the page between
    * phases. Resolves once `scan` is cheap. Safe to call repeatedly.
@@ -585,7 +592,7 @@ export function createPageScanner(options: PageScanOptions = {}): PageScanner {
       return warming;
     },
 
-    scan(element) {
+    scan(element, format) {
       cached ??= scanDocument();
 
       const breakpoints = toBreakpoints(
@@ -593,7 +600,10 @@ export function createPageScanner(options: PageScanOptions = {}): PageScanner {
       );
 
       const page = { ...cached, breakpoints };
-      return { ...page, exports: buildExports(page, doc.location?.host ?? 'this page') };
+      return {
+        ...page,
+        exports: buildExports(page, doc.location?.host ?? 'this page', format),
+      };
     },
 
     auditContrast() {

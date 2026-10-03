@@ -9,7 +9,8 @@
  *
  * Three independent checks:
  *   1. Our own source contains no network API usage.
- *   2. The generated manifest requests nothing beyond activeTab + scripting.
+ *   2. The generated manifest requests nothing beyond activeTab, scripting
+ *      and storage.
  *   3. The shipped bundles contain no network API usage either — which also
  *      covers anything a dependency might have dragged in.
  *
@@ -46,6 +47,9 @@ const NETWORK_PATTERNS = [
   { name: 'RTCPeerConnection', pattern: /\bRTCPeerConnection\b/ },
   { name: 'new Image()', pattern: /\bnew\s+Image\s*\(/ },
   { name: 'window.open()', pattern: /\bwindow\.open\s*\(/ },
+  // Settings live in storage.local. storage.sync uploads them to the browser
+  // vendor's servers: a network write by another name.
+  { name: 'storage.sync', pattern: /\bstorage\.sync\b/ },
 ];
 
 /**
@@ -69,8 +73,11 @@ const FORBIDDEN_MANIFEST_KEYS = [
  * An allowlist, not a denylist: a denylist is only as good as the day it was
  * written, and Chrome keeps adding permissions. Anything new has to be added
  * here, in review, on purpose.
+ *
+ * `storage` is here for the settings view, and only for `storage.local`; the
+ * network patterns above refuse the sync storage area.
  */
-const ALLOWED_PERMISSIONS = new Set(['activeTab', 'scripting']);
+const ALLOWED_PERMISSIONS = new Set(['activeTab', 'scripting', 'storage']);
 
 const violations = [];
 

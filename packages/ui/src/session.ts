@@ -15,6 +15,7 @@ import { collectElementData } from './panel/collect.js';
 import { createPageScanner, type ContrastAudit, type PageScanner } from './panel/page.js';
 import { saveViaAnchor } from './panel/download.js';
 import { createStructureModel, type StructureModel } from './panel/structure.js';
+import { normalizeSettings, type InspectorSettings } from './settings.js';
 import type { StructureApi } from './panel/structure-tree.jsx';
 import type { EditEntry, PageData, PanelData } from './panel/view-model.js';
 
@@ -45,6 +46,8 @@ export interface InspectorSession {
   toggle(): boolean;
   /** Arm or disarm the picker without closing the panel. */
   setPicking(picking: boolean): void;
+  /** Apply changed preferences — saved on the settings page, say, while this is open. */
+  updateSettings(settings: Partial<InspectorSettings>): void;
   destroy(): void;
 }
 
@@ -78,6 +81,13 @@ export interface SessionOptions {
   ) => void | Promise<string | null>;
   /** Called after the session deactivates, including via Escape. */
   onDeactivate?: () => void;
+  /** Starting preferences. The extension reads them from storage; defaults apply elsewhere. */
+  settings?: Partial<InspectorSettings>;
+  /**
+   * Keeps settings changed in the panel. Supplied by the extension, which
+   * writes them to storage; absent, a change lasts as long as the session.
+   */
+  onSettingsChange?: (settings: InspectorSettings) => void;
 }
 
 /** A short human label for an element in the change list. */
@@ -216,6 +226,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
   let previewElement: Element | null = null;
   /** The part of the box model the pointer is on in the panel's diagram. */
   let boxFocus: BoxFocus | null = null;
+  let settings = normalizeSettings(options.settings);
 
   function ensurePseudoStates(): edit.PseudoStateController {
     pseudoStates ??= edit.createPseudoStateController(doc);
@@ -541,6 +552,16 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     if (next) selectElement(next);
   }
 
+  function applySettings(next: Partial<InspectorSettings>): void {
+    settings = normalizeSettings({ ...settings, ...next });
+
+    // The exports are written in the colour notation, so they are rebuilt.
+    // `scan` reuses the document walk it already did; only the text changes.
+    const shown = pinnedElement ?? currentElement;
+    if (pageData && scanner && shown) pageData = scanner.scan(shown, settings.colorFormat);
+    if (active) scheduleRender();
+  }
+
   function structureApi(): StructureApi {
     return {
       setOpen(open) {
@@ -606,6 +627,11 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
       editing: editingApi(),
       structure: structureApi(),
       onTogglePicking: () => setPicking(!picking),
+      settingsSaved: options.onSettingsChange !== undefined,
+      onChangeSettings: (next: Partial<InspectorSettings>) => {
+        applySettings(next);
+        options.onSettingsChange?.(settings);
+      },
       onSelectAncestor: selectAncestor,
       onStep: stepSelection,
       onClose: requestClose,
@@ -665,9 +691,14 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     const collect = options.collect;
     const data = collect
       ? collect(element, win)
-      : collectElementData(element, win, { styleIndex: ensureStyleIndex(), ignore: isOurs });
+      : collectElementData(element, win, {
+          styleIndex: ensureStyleIndex(),
+          ignore: isOurs,
+          colorFormat: settings.colorFormat,
+        });
 
     data.boundary = boundary;
+    data.settings = settings;
 
     // Rebuilt on every paint while the drawer is open, which keeps it true to
     // a page that is changing underneath it. The walk covers only expanded
@@ -772,7 +803,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     await pageScanner.warm();
     if (!active || !element.isConnected || scanner !== pageScanner || token !== settleToken) return;
 
-    pageData = pageScanner.scan(element);
+    pageData = pageScanner.scan(element, settings.colorFormat);
 
     /**
      * Repaint with the deep findings merged in — through `render`, like every
@@ -1218,6 +1249,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
       return picking;
     },
     setPicking,
+    updateSettings: applySettings,
     get pinned() {
       return pinnedElement !== null;
     },

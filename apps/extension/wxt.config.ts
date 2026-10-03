@@ -45,7 +45,11 @@ export default defineConfig({
     name: 'Open Inspector',
     description:
       'Inspect layout, styles and design tokens on any page. Free, open source, and never sends anything anywhere.',
-    permissions: ['activeTab', 'scripting'],
+    /*
+     * `storage` holds the settings page's choices, on this device only. It
+     * asks the user nothing at install in either browser, and reads no page.
+     */
+    permissions: ['activeTab', 'scripting', 'storage'],
     action: {
       default_title: 'Inspect this page (Alt+Shift+I)',
     },

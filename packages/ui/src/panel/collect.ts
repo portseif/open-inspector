@@ -87,6 +87,7 @@ function toEntry(role: string, rgba: color.Rgba | null): ColorEntry | null {
   const formats = color.formatColor(rgba);
   const entry: ColorEntry = {
     hex: formats.hex,
+    hexa: formats.hexa,
     rgb: formats.rgb,
     hsl: formats.hsl,
     oklch: formats.oklch,
@@ -531,6 +532,11 @@ export interface CollectOptions {
   styleIndex?: cascade.StyleIndex | null;
   /** Elements belonging to the inspector, hidden from the tree. */
   ignore?: (element: Element) => boolean;
+  /**
+   * Rewrite the colours inside displayed values into this notation. Without
+   * it, values stay exactly as the browser serialized them.
+   */
+  colorFormat?: color.ColorFormat | undefined;
 }
 
 /** Read everything the panel shows for a single element. */
@@ -577,5 +583,39 @@ export function collectElementData(
 
   const source = readSource(element);
   if (source) data.source = source;
+  if (options.colorFormat) applyColorFormat(data, options.colorFormat);
   return data;
+}
+
+/**
+ * Write every colour the panel shows as text in one notation.
+ *
+ * Applied to display strings only, after the engine has done its work: the
+ * engine keeps reading the browser's own serialization, and swatches keep
+ * whatever they were given, since any notation paints the same.
+ */
+function applyColorFormat(data: PanelData, format: color.ColorFormat): void {
+  const rewrite = (value: string): string => color.reformatColors(value, format);
+  const rewriteField = (row: Field): Field => {
+    const next: Field = { ...row, value: rewrite(row.value) };
+    if (row.copy !== undefined) next.copy = rewrite(row.copy);
+    return next;
+  };
+  /** A whole colour, from any notation, into the chosen one. */
+  const convert = (value: string | undefined): string | undefined => {
+    const parsed = value ? color.parseColor(value) : null;
+    return parsed ? color.formatAs(parsed, format) : value;
+  };
+
+  data.spacing = data.spacing.map(rewriteField);
+  data.appearance = data.appearance.map(rewriteField);
+  data.layout.fields = data.layout.fields.map(rewriteField);
+  if (data.layout.parent) data.layout.parent.fields = data.layout.parent.fields.map(rewriteField);
+  if (data.typography.decoration) data.typography.decoration = rewrite(data.typography.decoration);
+
+  if (data.contrast?.kind === 'measured') {
+    data.contrast.foreground = convert(data.contrast.foreground);
+    data.contrast.background = convert(data.contrast.background);
+    data.contrast.suggestion = convert(data.contrast.suggestion);
+  }
 }

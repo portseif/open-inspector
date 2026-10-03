@@ -1,4 +1,5 @@
 import type { BoxModel, ProbeBoundary } from '@open-inspector/core';
+import type { InspectorSettings } from '../settings.js';
 
 /**
  * What the panel renders.
@@ -127,6 +128,7 @@ export interface EditEntry {
 
 export interface ColorEntry {
   hex: string;
+  hexa?: string | undefined;
   rgb: string;
   hsl?: string | undefined;
   oklch?: string | undefined;
@@ -281,6 +283,11 @@ export interface PanelData {
   tree?: TreeInfo | undefined;
   /** Present only for elements that do not render; the Styles tab shows it instead of a box. */
   source?: SourceInfo | undefined;
+  /**
+   * The preferences in force. Values the collector builds already follow
+   * them; colour entries carry every notation and the panel picks from them.
+   */
+  settings?: InspectorSettings | undefined;
   /** The structure drawer's rows. Absent while the drawer is closed. */
   structure?: StructureInfo | undefined;
   /** Forceable pseudo-states, and which are on. */
@@ -322,7 +329,15 @@ export interface PageData {
   exports?: ExportFormat[] | undefined;
 }
 
-export type PanelTab = 'styles' | 'color' | 'type' | 'layout' | 'assets' | 'markup' | 'export';
+export type PanelTab =
+  | 'styles'
+  | 'color'
+  | 'type'
+  | 'layout'
+  | 'assets'
+  | 'markup'
+  | 'export'
+  | 'settings';
 
 export const PANEL_TABS: ReadonlyArray<{ id: PanelTab; label: string }> = [
   { id: 'styles', label: 'Styles' },

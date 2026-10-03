@@ -36,6 +36,11 @@ const PATHS = {
   eyeOff: 'M1.8 8S4 3.8 8 3.8 14.2 8 14.2 8 12 12.2 8 12.2 1.8 8 1.8 8zM8 6.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6zM2.5 13.5l11-11',
   search: 'M7 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM10 10l3 3',
   coffee: 'M3 6.5h8V10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM11 7.5h1a1.5 1.5 0 0 1 0 3h-1M5.5 2.5V4M8.5 2.5V4',
+  // An eight-tooth cog around a hub. Teeth with flat tops and a solid body,
+  // because thin spokes round a small circle read as a sun — the light/dark
+  // toggle — rather than as settings.
+  settings:
+    'M6.93 3.53L7.05 1.67L8.95 1.67L9.07 3.53A4.6 4.6 0 0 1 10.4 4.08L11.81 2.86L13.14 4.19L11.92 5.6A4.6 4.6 0 0 1 12.47 6.93L14.33 7.05L14.33 8.95L12.47 9.07A4.6 4.6 0 0 1 11.92 10.4L13.14 11.81L11.81 13.14L10.4 11.92A4.6 4.6 0 0 1 9.07 12.47L8.95 14.33L7.05 14.33L6.93 12.47A4.6 4.6 0 0 1 5.6 11.92L4.19 13.14L2.86 11.81L4.08 10.4A4.6 4.6 0 0 1 3.53 9.07L1.67 8.95L1.67 7.05L3.53 6.93A4.6 4.6 0 0 1 4.08 5.6L2.86 4.19L4.19 2.86L5.6 4.08A4.6 4.6 0 0 1 6.93 3.53ZM8 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
 } as const;
 
 export type IconName = keyof typeof PATHS;
@@ -68,4 +73,5 @@ export const TAB_ICONS: Record<PanelTab, IconName> = {
   assets: 'assets',
   markup: 'markup',
   export: 'export',
+  settings: 'settings',
 };

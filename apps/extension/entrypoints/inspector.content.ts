@@ -1,5 +1,6 @@
 import { defineContentScript } from 'wxt/sandbox';
 import { createInspectorSession } from '@open-inspector/ui';
+import { loadSettings, onSettingsChanged, saveSettings } from '../lib/settings.js';
 import {
   PING,
   RESIZE,
@@ -68,6 +69,11 @@ export default defineContentScript({
         void browser.runtime.sendMessage({ type: SAVE, href, filename });
       },
 
+      // Kept in storage.local, which content scripts can write directly.
+      onSettingsChange: (settings) => {
+        void saveSettings(settings);
+      },
+
       // Only the worker can move a window; a content script has no windows API.
       resize: async (viewportWidth, innerWidth) => {
         try {
@@ -97,6 +103,14 @@ export default defineContentScript({
     browser.runtime.onMessage.addListener(handleMessage);
 
     /**
+     * Settings arrive after the session exists, from an asynchronous read.
+     * The panel only appears once a toggle message lands, which is well after
+     * this resolves, so nothing is drawn in the wrong colour notation first.
+     */
+    void loadSettings().then((settings) => session.updateSettings(settings));
+    const stopListening = onSettingsChanged((settings) => session.updateSettings(settings));
+
+    /**
      * Tear down completely when this instance is superseded.
      *
      * WXT invalidates the previous instance whenever this script is evaluated
@@ -115,6 +129,7 @@ export default defineContentScript({
      */
     ctx.onInvalidated(() => {
       browser.runtime.onMessage.removeListener(handleMessage);
+      stopListening();
       session.destroy();
     });
   },

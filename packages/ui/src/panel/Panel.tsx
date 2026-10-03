@@ -6,6 +6,8 @@ import { useEditing } from './editing.jsx';
 import { Group } from './primitives.jsx';
 import { Icon, TAB_ICONS } from './icons.jsx';
 import { StructureTree, type StructureApi } from './structure-tree.jsx';
+import { SettingsSection } from './settings-view.jsx';
+import type { InspectorSettings } from '../settings.js';
 import {
   AssetsSection,
   MarkupSection,
@@ -27,6 +29,10 @@ export interface PanelProps {
   onStep: (direction: 'parent' | 'child' | 'previous' | 'next') => void;
   /** The structure drawer's controls; absent, the drawer is not offered. */
   structure?: StructureApi | undefined;
+  /** A setting was changed in the panel; absent, there is no settings view. */
+  onChangeSettings?: ((next: Partial<InspectorSettings>) => void) | undefined;
+  /** Whether a change is kept beyond this session. */
+  settingsSaved?: boolean | undefined;
   /** True when the panel is frozen on one element. */
   pinned: boolean;
   /** True while the picker is armed and the page is being captured. */
@@ -617,9 +623,14 @@ function Rail({
   children?: ComponentChildren;
 }) {
   const strip = useRef<HTMLElement>(null);
+  /**
+   * The rail's one tab stop. With the settings view open no rail tab is
+   * selected, and a strip with no stop cannot be reached from the keyboard.
+   */
+  const stop = PANEL_TABS.some((entry) => entry.id === tab) ? tab : PANEL_TABS[0]!.id;
 
   function move(event: KeyboardEvent): void {
-    const index = PANEL_TABS.findIndex((entry) => entry.id === tab);
+    const index = PANEL_TABS.findIndex((entry) => entry.id === stop);
     const last = PANEL_TABS.length - 1;
     const forward = event.key === 'ArrowDown' || event.key === 'ArrowRight';
     const back = event.key === 'ArrowUp' || event.key === 'ArrowLeft';
@@ -658,7 +669,7 @@ function Rail({
             class="tab"
             aria-selected={entry.id === tab}
             aria-controls="oi-tabpanel"
-            tabIndex={entry.id === tab ? 0 : -1}
+            tabIndex={entry.id === stop ? 0 : -1}
             onClick={() => onSelect(entry.id)}
           >
             <Icon name={TAB_ICONS[entry.id]} size={15} />
@@ -688,10 +699,14 @@ export function Panel({
   onSelectAncestor,
   onStep,
   structure,
+  onChangeSettings,
+  settingsSaved = false,
   confirmClose = null,
   onCancelClose,
 }: PanelProps) {
   const [tab, setTab] = useState<PanelTab>('styles');
+  /** Where the settings button returns to when pressed again. */
+  const lastContentTab = useRef<PanelTab>('styles');
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
@@ -787,6 +802,7 @@ export function Panel({
         onSelect={(next) => {
           // Re-selecting Styles is how you get back to the Changes list.
           if (next === tab) body.current?.scrollTo?.({ top: 0 });
+          lastContentTab.current = next;
           setTab(next);
         }}
       >
@@ -800,6 +816,20 @@ export function Panel({
         >
           <Icon name="flip" size={15} />
         </button>
+        {onChangeSettings ? (
+          <button
+            type="button"
+            id="oi-tab-settings"
+            class="icon-btn"
+            aria-pressed={tab === 'settings'}
+            aria-controls="oi-tabpanel"
+            aria-label="Settings"
+            title="Settings"
+            onClick={() => setTab(tab === 'settings' ? lastContentTab.current : 'settings')}
+          >
+            <Icon name="settings" size={15} />
+          </button>
+        ) : null}
       </Rail>
 
       <div class="main">
@@ -917,6 +947,13 @@ export function Panel({
           {tab === 'assets' ? <AssetsSection data={data} /> : null}
           {tab === 'markup' ? <MarkupSection data={data} /> : null}
           {tab === 'export' ? <ExportSection data={data} /> : null}
+          {tab === 'settings' && onChangeSettings && data.settings ? (
+            <SettingsSection
+              settings={data.settings}
+              saved={settingsSaved}
+              onChange={onChangeSettings}
+            />
+          ) : null}
         </div>
         </SearchContext.Provider>
         <Footer />
