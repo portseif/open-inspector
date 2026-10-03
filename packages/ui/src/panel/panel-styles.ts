@@ -52,6 +52,9 @@ export const PANEL_STYLES = `
      * than the content did. Mixed from --ink-mute so it follows the theme.
      */
     --scroll-thumb: color-mix(in srgb, var(--ink-mute) 55%, transparent);
+    /* The corner grip's pressed-in pixels: a shadow, and the light that catches its lower edge. */
+    --grip-shade: rgba(0, 0, 0, 0.75);
+    --grip-light: rgba(255, 255, 255, 0.22);
     /* Text on an accent fill. See the note in the light block. */
     --on-accent: #14181c;
     --accent: #e4743f;
@@ -107,6 +110,8 @@ export const PANEL_STYLES = `
       --ink-soft: #3d474e;
       /* Tuned against --bg-sunk, the darkest light surface: 5.06:1 there. */
       --ink-mute: #5c656b;
+      --grip-shade: rgba(20, 24, 28, 0.45);
+      --grip-light: #ffffff;
       --rule: #d5dbde;
       /* 3.5:1 on sunk, clearing the 3:1 that WCAG 1.4.11 asks of a boundary. */
       --rule-strong: #787d80;
@@ -524,8 +529,60 @@ export const PANEL_STYLES = `
   .resize-handle:focus-visible::after,
   .resize-handle[data-dragging='true']::after { background: var(--accent); }
   .resize-handle:focus-visible { outline: none; }
+
+  /* The bottom edge: the same thin line as the side, turned on its side. */
+  .resize-bottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 6px;
+    z-index: 3;
+    cursor: ns-resize;
+    touch-action: none;
+  }
+  .resize-bottom::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: transparent;
+    transition: background 120ms ease-out;
+  }
+  .resize-bottom:hover::after,
+  .resize-bottom:focus-visible::after,
+  .resize-bottom[data-dragging='true']::after { background: var(--accent); }
+  .resize-bottom:focus-visible { outline: none; }
+
+  /*
+   * The bottom-right corner, above both edges so a press there takes width and
+   * height together. A grip of three inset pixels marks it.
+   */
+  .resize-corner {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 14px;
+    height: 14px;
+    z-index: 4;
+    cursor: nwse-resize;
+    touch-action: none;
+  }
+  .corner-grip {
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    display: block;
+    shape-rendering: crispEdges;
+  }
+  .grip-shade { fill: var(--grip-shade); }
+  .grip-light { fill: var(--grip-light); }
+
   @media (prefers-reduced-motion: reduce) {
-    .resize-handle::after { transition: none; }
+    .resize-handle::after,
+    .resize-bottom::after { transition: none; }
   }
 
   button {

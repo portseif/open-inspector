@@ -10,9 +10,12 @@ import { SettingsSection } from './settings-view.jsx';
 import type { InspectorSettings, PanelPlacement } from '../settings.js';
 import {
   DEFAULT_WIDTH,
+  MARGIN,
   MAX_WIDTH,
+  MIN_FLOATING_HEIGHT,
   MIN_WIDTH,
   clampFloating,
+  clampHeight,
   clampWidth,
   dropPlacement,
   nearestSide,
@@ -532,77 +535,157 @@ function viewportOf(view: Window): Viewport {
   return { width: view.innerWidth, height: view.innerHeight };
 }
 
+/** A size change from one of the handles. `height: null` runs the panel to the bottom margin. */
+type PanelSize = { width?: number; height?: number | null };
+
 /**
- * An edge of the panel, as a handle.
+ * An edge or corner of the panel, as a handle.
  *
  * A fixed 348px panel regularly sat on top of the very element being read,
- * and flipping sides only helps if the other side is empty. Dragging the edge
- * (or arrow keys while it has focus) trades panel width for page. Docked, the
- * handle is the inner edge; floating, it is the right one.
+ * and flipping sides only helps if the other side is empty. The side handle
+ * trades width for page — the inner edge when docked, the right one when
+ * floating. The bottom one does the same with height, and the corner does
+ * both at once. Side and bottom also answer arrow keys while focused; the
+ * corner adds nothing a keyboard needs, so it is left out of the tab order.
  */
 function ResizeHandle({
+  kind,
   edge,
   width,
+  height,
   onResize,
 }: {
-  /** Which edge of the panel the handle sits on. */
+  kind: 'side' | 'bottom' | 'corner';
+  /** The edge the width is measured from: where a side or corner handle sits. */
   edge: 'left' | 'right';
   width: number;
-  onResize: (width: number, commit: boolean) => void;
+  /** The height the panel has now, however it got it. */
+  height: number;
+  onResize: (size: PanelSize, commit: boolean) => void;
 }) {
   const handle = useRef<HTMLDivElement>(null);
-  /** The panel's box when the drag began; the width is measured from its far edge. */
+  /** The panel's box when the drag began; sizes are measured from its far edges. */
   const start = useRef<DOMRect | null>(null);
+  /**
+   * Where the press landed, and whether the pointer has left it since.
+   *
+   * A press that never moves is a click, and must not resize anything. The
+   * handle is a few pixels thick, so measuring a size from wherever the click
+   * landed nudged the panel — and moved the edge out from under the pointer,
+   * so the second click of a double-click landed outside it.
+   */
+  const press = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   function viewport(): Viewport {
     const view = handle.current?.ownerDocument.defaultView;
     return view ? viewportOf(view) : { width: MAX_WIDTH + 48, height: 0 };
   }
 
-  function widthAt(clientX: number): number {
+  function sizeAt(clientX: number, clientY: number): PanelSize {
     const box = start.current;
-    if (!box) return width;
-    return clampWidth(edge === 'left' ? box.right - clientX : clientX - box.left, viewport());
+    if (!box) return {};
+    const size: PanelSize = {};
+    if (kind !== 'bottom') {
+      size.width = clampWidth(edge === 'left' ? box.right - clientX : clientX - box.left, viewport());
+    }
+    if (kind !== 'side') size.height = clampHeight(clientY - box.top, box.top, viewport());
+    return size;
+  }
+
+  const reset: PanelSize =
+    kind === 'side'
+      ? { width: DEFAULT_WIDTH }
+      : kind === 'bottom'
+        ? { height: null }
+        : { width: DEFAULT_WIDTH, height: null };
+
+  const label = kind === 'bottom' ? 'Panel height' : 'Panel width';
+  const pointer = {
+    onPointerDown: (event: PointerEvent) => {
+      event.preventDefault();
+      const target = event.currentTarget as HTMLElement;
+      start.current = target.parentElement?.getBoundingClientRect() ?? null;
+      press.current = { x: event.clientX, y: event.clientY, moved: false };
+      target.setPointerCapture(event.pointerId);
+      target.dataset['dragging'] = 'true';
+    },
+    onPointerMove: (event: PointerEvent) => {
+      const at = press.current;
+      if (!at || !(event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) return;
+      if (!at.moved && Math.hypot(event.clientX - at.x, event.clientY - at.y) < 2) return;
+      at.moved = true;
+      onResize(sizeAt(event.clientX, event.clientY), false);
+    },
+    onPointerUp: (event: PointerEvent) => {
+      const target = event.currentTarget as HTMLElement;
+      target.releasePointerCapture(event.pointerId);
+      delete target.dataset['dragging'];
+      if (press.current?.moved) onResize(sizeAt(event.clientX, event.clientY), true);
+      start.current = null;
+      press.current = null;
+    },
+    onDblClick: () => onResize(reset, true),
+  };
+
+  if (kind === 'corner') {
+    return (
+      <div
+        ref={handle}
+        class="resize-corner"
+        aria-hidden="true"
+        title="Drag to resize · double-click to reset"
+        {...pointer}
+      >
+        {/* Three single-pixel dimples in the corner's 2×2 grid, the empty cell
+            away from the corner, so the grip points at where it pulls. Each
+            is a shade pixel with a light one below and right of it, which is
+            what reads as pressed in. */}
+        <svg class="corner-grip" viewBox="0 0 5 5" width="5" height="5">
+          <rect class="grip-light" x="4" y="1" width="1" height="1" />
+          <rect class="grip-light" x="4" y="4" width="1" height="1" />
+          <rect class="grip-light" x="1" y="4" width="1" height="1" />
+          <rect class="grip-shade" x="3" y="0" width="1" height="1" />
+          <rect class="grip-shade" x="3" y="3" width="1" height="1" />
+          <rect class="grip-shade" x="0" y="3" width="1" height="1" />
+        </svg>
+      </div>
+    );
   }
 
   return (
     <div
       ref={handle}
-      class="resize-handle"
+      class={kind === 'bottom' ? 'resize-bottom' : 'resize-handle'}
       role="separator"
-      aria-orientation="vertical"
-      aria-label="Panel width"
-      aria-valuenow={width}
-      aria-valuemin={MIN_WIDTH}
-      aria-valuemax={MAX_WIDTH}
+      aria-orientation={kind === 'bottom' ? 'horizontal' : 'vertical'}
+      aria-label={label}
+      aria-valuenow={kind === 'bottom' ? height : width}
+      aria-valuemin={kind === 'bottom' ? MIN_FLOATING_HEIGHT : MIN_WIDTH}
+      aria-valuemax={kind === 'bottom' ? undefined : MAX_WIDTH}
       tabIndex={0}
-      title="Drag to resize · double-click to reset"
-      onPointerDown={(event) => {
-        event.preventDefault();
-        const target = event.currentTarget;
-        start.current = target.parentElement?.getBoundingClientRect() ?? null;
-        target.setPointerCapture(event.pointerId);
-        target.dataset['dragging'] = 'true';
-      }}
-      onPointerMove={(event) => {
-        if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-        onResize(widthAt(event.clientX), false);
-      }}
-      onPointerUp={(event) => {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-        delete event.currentTarget.dataset['dragging'];
-        onResize(widthAt(event.clientX), true);
-        start.current = null;
-      }}
-      onDblClick={() => onResize(DEFAULT_WIDTH, true)}
+      title={
+        kind === 'bottom'
+          ? 'Drag to resize · double-click to fill the height'
+          : 'Drag to resize · double-click to reset'
+      }
+      {...pointer}
       onKeyDown={(event) => {
+        const step = event.shiftKey ? 48 : 16;
+        if (kind === 'bottom') {
+          if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+          event.preventDefault();
+          event.stopPropagation();
+          const top = start.current?.top ?? handle.current?.parentElement?.getBoundingClientRect().top ?? 0;
+          const next = height + (event.key === 'ArrowDown' ? step : -step);
+          onResize({ height: clampHeight(next, top, viewport()) }, true);
+          return;
+        }
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
         event.preventDefault();
         event.stopPropagation();
         // Growing means moving the handle away from the rest of the panel.
         const grows = (event.key === 'ArrowLeft') === (edge === 'left');
-        const step = event.shiftKey ? 48 : 16;
-        onResize(clampWidth(width + (grows ? step : -step), viewport()), true);
+        onResize({ width: clampWidth(width + (grows ? step : -step), viewport()) }, true);
       }}
     />
   );
@@ -655,7 +738,7 @@ function useHeaderDrag(
           setDragging(true);
         }
         const position = clampFloating(at.left, at.top, placement.width, viewportOf(view));
-        onPlace({ dock: null, ...position, width: placement.width }, false);
+        onPlace({ ...placement, dock: null, ...position }, false);
       },
       onPointerUp(event: PointerEvent) {
         const start = drag.current;
@@ -665,7 +748,7 @@ function useHeaderDrag(
         if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
         if (!start?.moved || !at) return;
         setDragging(false);
-        onPlace(dropPlacement(event.clientX, at.left, at.top, placement.width, viewportOf(view)), true);
+        onPlace(dropPlacement(event.clientX, at.left, at.top, placement, viewportOf(view)), true);
       },
       onDblClick(event: MouseEvent) {
         if ((event.target as Element | null)?.closest?.(NOT_A_DRAG)) return;
@@ -798,9 +881,21 @@ export function Panel({
   const width = clampWidth(placement.width, viewport);
   const floating = placement.dock === null;
   const position = floating ? clampFloating(placement.x, placement.y, width, viewport) : null;
-  const style = position
-    ? { width: `${width}px`, left: `${position.x}px`, top: `${position.y}px` }
-    : { width: `${width}px` };
+  const top = position?.y ?? MARGIN;
+  /** A dragged height, or all the room down to the bottom margin. */
+  const height =
+    placement.height === null
+      ? viewport.height - top - MARGIN
+      : clampHeight(placement.height, top, viewport);
+  const style: Record<string, string> = { width: `${width}px` };
+  if (position) {
+    style['left'] = `${position.x}px`;
+    style['top'] = `${position.y}px`;
+  }
+  if (placement.height !== null) {
+    style['height'] = `${height}px`;
+    style['bottom'] = 'auto';
+  }
 
   /** Frame attributes both the onboarding and the full panel share. */
   const frameProps = {
@@ -810,12 +905,18 @@ export function Panel({
     'data-dragging': dragging,
     style,
   };
+  const edge = placement.dock === 'right' ? 'left' : 'right';
+  const resize = (size: PanelSize, commit: boolean) => onPlace({ ...placement, ...size }, commit);
   const resizeHandle = (
-    <ResizeHandle
-      edge={placement.dock === 'right' ? 'left' : 'right'}
-      width={width}
-      onResize={(next, commit) => onPlace({ ...placement, width: next }, commit)}
-    />
+    <>
+      <ResizeHandle kind="side" edge={edge} width={width} height={height} onResize={resize} />
+      <ResizeHandle kind="bottom" edge={edge} width={width} height={height} onResize={resize} />
+      {/* The bottom-right corner, where it is the inner one. Docked right,
+          that corner is pinned to the window and could not widen anything. */}
+      {placement.dock === 'right' ? null : (
+        <ResizeHandle kind="corner" edge={edge} width={width} height={height} onResize={resize} />
+      )}
+    </>
   );
   const edits = data?.edits?.length ?? 0;
   const closeTitle = edits > 0 ? `Close — reverts ${plural(edits, 'change')} (Esc)` : 'Close (Esc)';

@@ -1,13 +1,6 @@
 import { color } from '@open-inspector/core';
 
-/**
- * The inspector's preferences.
- *
- * The only thing the extension stores, and only on this device: the shell
- * keeps them in `storage.local`, never the sync storage area, which would
- * send them to the browser vendor. Nothing here describes a page.
- */
-/** Where the panel sits: docked full-height to a side, or floating where it was dropped. */
+/** Where the panel sits: docked to a side, or floating where it was dropped. */
 export interface PanelPlacement {
   /** The edge it is docked to, or null when it floats at `x`, `y`. */
   dock: 'left' | 'right' | null;
@@ -15,8 +8,17 @@ export interface PanelPlacement {
   x: number;
   y: number;
   width: number;
+  /** A height dragged from the bottom edge, or null to run down to the bottom margin. */
+  height: number | null;
 }
 
+/**
+ * The inspector's preferences.
+ *
+ * The only thing the extension stores, and only on this device: the shell
+ * keeps them in `storage.local`, never the sync storage area, which would
+ * send them to the browser vendor. Nothing here describes a page.
+ */
 export interface InspectorSettings {
   /** How colours are written in the panel, on the clipboard and in exports. */
   colorFormat: color.ColorFormat;
@@ -26,7 +28,7 @@ export interface InspectorSettings {
 
 export const DEFAULT_SETTINGS: InspectorSettings = {
   colorFormat: 'oklch',
-  panel: { dock: 'right', x: 12, y: 12, width: 348 },
+  panel: { dock: 'right', x: 12, y: 12, width: 348, height: null },
 };
 
 /**
@@ -54,11 +56,13 @@ function normalizePlacement(raw: unknown): PanelPlacement {
   const number = (value: unknown, otherwise: number): number =>
     typeof value === 'number' && Number.isFinite(value) ? value : otherwise;
   const dock = stored['dock'];
+  const height = stored['height'];
 
   return {
     dock: dock === 'left' || dock === 'right' || dock === null ? dock : fallback.dock,
     x: number(stored['x'], fallback.x),
     y: number(stored['y'], fallback.y),
     width: number(stored['width'], fallback.width),
+    height: typeof height === 'number' && Number.isFinite(height) ? height : null,
   };
 }

@@ -27,6 +27,15 @@ export interface Viewport {
   height: number;
 }
 
+/**
+ * A dragged height, kept between the floor and the room below the panel's top.
+ * Saved in a taller window, it shrinks to fit rather than running off screen.
+ */
+export function clampHeight(height: number, top: number, viewport: Viewport): number {
+  const room = viewport.height - top - MARGIN;
+  return Math.round(Math.max(Math.min(MIN_FLOATING_HEIGHT, room), Math.min(height, room)));
+}
+
 export function clampWidth(width: number, viewport: Viewport): number {
   const room = viewport.width - 48;
   return Math.round(Math.max(MIN_WIDTH, Math.min(width, MAX_WIDTH, room)));
@@ -69,11 +78,13 @@ export function dropPlacement(
   pointerX: number,
   x: number,
   y: number,
-  width: number,
+  size: { width: number; height: number | null },
   viewport: Viewport,
 ): PanelPlacement {
-  const position = clampFloating(x, y, width, viewport);
-  if (pointerX <= DOCK_ZONE) return { dock: 'left', ...position, width };
-  if (pointerX >= viewport.width - DOCK_ZONE) return { dock: 'right', ...position, width };
-  return { dock: null, ...position, width };
+  const position = clampFloating(x, y, size.width, viewport);
+  const dock =
+    pointerX <= DOCK_ZONE ? 'left' : pointerX >= viewport.width - DOCK_ZONE ? 'right' : null;
+  // Only the size is taken from `size`: callers pass a whole placement, and its
+  // own `dock` must not overwrite the one this drop decided.
+  return { dock, ...position, width: size.width, height: size.height };
 }

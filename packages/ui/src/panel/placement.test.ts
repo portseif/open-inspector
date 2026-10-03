@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { DOCK_ZONE, MARGIN, clampFloating, clampWidth, dropPlacement, nearestSide } from './placement.js';
+import {
+  DOCK_ZONE,
+  MARGIN,
+  clampFloating,
+  clampHeight,
+  clampWidth,
+  dropPlacement,
+  nearestSide,
+} from './placement.js';
 
 const viewport = { width: 1280, height: 800 };
 
@@ -26,25 +34,44 @@ describe('clampFloating', () => {
 
 describe('dropPlacement', () => {
   it('floats where it was let go', () => {
-    expect(dropPlacement(640, 400, 100, 348, viewport)).toEqual({
+    expect(dropPlacement(640, 400, 100, { width: 348, height: 420 }, viewport)).toEqual({
       dock: null,
       x: 400,
       y: 100,
       width: 348,
+      height: 420,
     });
   });
 
+  it('decides the dock itself, even when handed a whole floating placement', () => {
+    const floating = { dock: null, x: 300, y: 100, width: 348, height: null };
+    expect(dropPlacement(2, 300, 100, floating, viewport).dock).toBe('left');
+  });
+
   it('docks when dropped against a side edge', () => {
-    expect(dropPlacement(DOCK_ZONE - 1, 0, 100, 348, viewport).dock).toBe('left');
-    expect(dropPlacement(1280 - 4, 900, 100, 348, viewport).dock).toBe('right');
+    const size = { width: 348, height: null };
+    expect(dropPlacement(DOCK_ZONE - 1, 0, 100, size, viewport).dock).toBe('left');
+    expect(dropPlacement(1280 - 4, 900, 100, size, viewport).dock).toBe('right');
+  });
+});
+
+describe('clampHeight', () => {
+  it('keeps a height that fits, and fits one that does not', () => {
+    expect(clampHeight(400, 100, viewport)).toBe(400);
+    expect(clampHeight(5000, 100, viewport)).toBe(800 - 100 - MARGIN);
+  });
+
+  it('never goes below the floor while there is room for it', () => {
+    expect(clampHeight(50, 100, viewport)).toBe(200);
   });
 });
 
 describe('nearestSide', () => {
   it('is the dock when docked, and the closer half when floating', () => {
-    expect(nearestSide({ dock: 'left', x: 900, y: 12, width: 348 }, viewport)).toBe('left');
-    expect(nearestSide({ dock: null, x: 100, y: 12, width: 348 }, viewport)).toBe('left');
-    expect(nearestSide({ dock: null, x: 800, y: 12, width: 348 }, viewport)).toBe('right');
+    const at = (dock: 'left' | null, x: number) => ({ dock, x, y: 12, width: 348, height: null });
+    expect(nearestSide(at('left', 900), viewport)).toBe('left');
+    expect(nearestSide(at(null, 100), viewport)).toBe('left');
+    expect(nearestSide(at(null, 800), viewport)).toBe('right');
   });
 });
 

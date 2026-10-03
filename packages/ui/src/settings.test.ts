@@ -19,11 +19,17 @@ describe('normalizeSettings', () => {
 
 describe('normalizeSettings: the panel placement', () => {
   it('opens docked right by default', () => {
-    expect(normalizeSettings(undefined).panel).toEqual({ dock: 'right', x: 12, y: 12, width: 348 });
+    expect(normalizeSettings(undefined).panel).toEqual({
+      dock: 'right',
+      x: 12,
+      y: 12,
+      width: 348,
+      height: null,
+    });
   });
 
   it('keeps a floating position it was given', () => {
-    const panel = { dock: null, x: 200, y: 80, width: 420 };
+    const panel = { dock: null, x: 200, y: 80, width: 420, height: 500 };
     expect(normalizeSettings({ panel }).panel).toEqual(panel);
   });
 
@@ -33,6 +39,7 @@ describe('normalizeSettings: the panel placement', () => {
       x: 12,
       y: 40,
       width: 348,
+      height: null,
     });
   });
 });
