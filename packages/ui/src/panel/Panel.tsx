@@ -7,7 +7,17 @@ import { Group } from './primitives.jsx';
 import { Icon, TAB_ICONS } from './icons.jsx';
 import { StructureTree, type StructureApi } from './structure-tree.jsx';
 import { SettingsSection } from './settings-view.jsx';
-import type { InspectorSettings } from '../settings.js';
+import type { InspectorSettings, PanelPlacement } from '../settings.js';
+import {
+  DEFAULT_WIDTH,
+  MAX_WIDTH,
+  MIN_WIDTH,
+  clampFloating,
+  clampWidth,
+  dropPlacement,
+  nearestSide,
+  type Viewport,
+} from './placement.js';
 import {
   AssetsSection,
   MarkupSection,
@@ -39,9 +49,15 @@ export interface PanelProps {
   picking: boolean;
   onTogglePicking: () => void;
   onClose: () => void;
-  /** Which edge the panel is docked to. */
-  side: 'left' | 'right';
-  onFlip: () => void;
+  /** Docked to a side, or floating where it was dropped. */
+  placement: PanelPlacement;
+  /** The window the panel is in, for its size. */
+  view: Window;
+  /**
+   * The panel was moved, docked or resized. `commit` is false while a drag is
+   * under way and true once it settles — the moment worth saving.
+   */
+  onPlace: (next: PanelPlacement, commit: boolean) => void;
   /** Closing would revert this many edits and is waiting to be confirmed; null when not asking. */
   confirmClose?: number | null;
   onCancelClose?: () => void;
@@ -512,48 +528,41 @@ function ConfirmClose({
   );
 }
 
-/** Narrowest width the rows still lay out in; widest before it stops being a side panel. */
-const MIN_WIDTH = 300;
-const MAX_WIDTH = 720;
-const DEFAULT_WIDTH = 348;
-
-/**
- * Remembered for as long as the page is open, and no longer.
- *
- * Persisting it would mean either the page's own localStorage — writing to
- * storage we do not own — or the `storage` permission, which the manifest
- * does not have and the egress guard would reject. A width that survives
- * closing and reopening the panel on the same page covers the actual need.
- */
-let rememberedWidth = DEFAULT_WIDTH;
-
-function clampWidth(width: number, view: Window | null): number {
-  const room = (view?.innerWidth ?? MAX_WIDTH + 48) - 48;
-  return Math.round(Math.max(MIN_WIDTH, Math.min(width, MAX_WIDTH, room)));
+function viewportOf(view: Window): Viewport {
+  return { width: view.innerWidth, height: view.innerHeight };
 }
 
 /**
- * The inner edge, as a handle.
+ * An edge of the panel, as a handle.
  *
  * A fixed 348px panel regularly sat on top of the very element being read,
  * and flipping sides only helps if the other side is empty. Dragging the edge
- * (or arrow keys while it has focus) trades panel width for page.
+ * (or arrow keys while it has focus) trades panel width for page. Docked, the
+ * handle is the inner edge; floating, it is the right one.
  */
 function ResizeHandle({
-  side,
+  edge,
   width,
   onResize,
 }: {
-  side: 'left' | 'right';
+  /** Which edge of the panel the handle sits on. */
+  edge: 'left' | 'right';
   width: number;
-  onResize: (width: number) => void;
+  onResize: (width: number, commit: boolean) => void;
 }) {
   const handle = useRef<HTMLDivElement>(null);
+  /** The panel's box when the drag began; the width is measured from its far edge. */
+  const start = useRef<DOMRect | null>(null);
+
+  function viewport(): Viewport {
+    const view = handle.current?.ownerDocument.defaultView;
+    return view ? viewportOf(view) : { width: MAX_WIDTH + 48, height: 0 };
+  }
 
   function widthAt(clientX: number): number {
-    const view = handle.current?.ownerDocument.defaultView ?? null;
-    const edge = side === 'right' ? (view?.innerWidth ?? 0) - clientX - 12 : clientX - 12;
-    return clampWidth(edge, view);
+    const box = start.current;
+    if (!box) return width;
+    return clampWidth(edge === 'left' ? box.right - clientX : clientX - box.left, viewport());
   }
 
   return (
@@ -571,30 +580,99 @@ function ResizeHandle({
       onPointerDown={(event) => {
         event.preventDefault();
         const target = event.currentTarget;
+        start.current = target.parentElement?.getBoundingClientRect() ?? null;
         target.setPointerCapture(event.pointerId);
         target.dataset['dragging'] = 'true';
       }}
       onPointerMove={(event) => {
         if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-        onResize(widthAt(event.clientX));
+        onResize(widthAt(event.clientX), false);
       }}
       onPointerUp={(event) => {
         event.currentTarget.releasePointerCapture(event.pointerId);
         delete event.currentTarget.dataset['dragging'];
+        onResize(widthAt(event.clientX), true);
+        start.current = null;
       }}
-      onDblClick={() => onResize(DEFAULT_WIDTH)}
+      onDblClick={() => onResize(DEFAULT_WIDTH, true)}
       onKeyDown={(event) => {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
         event.preventDefault();
         event.stopPropagation();
-        // Growing means moving the inner edge away from the panel's own side.
-        const grows = (event.key === 'ArrowLeft') === (side === 'right');
+        // Growing means moving the handle away from the rest of the panel.
+        const grows = (event.key === 'ArrowLeft') === (edge === 'left');
         const step = event.shiftKey ? 48 : 16;
-        const view = handle.current?.ownerDocument.defaultView ?? null;
-        onResize(clampWidth(width + (grows ? step : -step), view));
+        onResize(clampWidth(width + (grows ? step : -step), viewport()), true);
       }}
     />
   );
+}
+
+/** Controls a press on which is theirs, not the start of a drag. */
+const NOT_A_DRAG = 'button, input, select, textarea, a, [role="separator"]';
+
+/**
+ * Dragging the panel by its header.
+ *
+ * A few pixels of travel before it counts, so a click on the header — to
+ * focus it, or to start a double-click — never nudges the panel. While it
+ * moves, every position is reported uncommitted; the drop is the one that is
+ * saved, and dropping against a side edge docks the panel there.
+ */
+function useHeaderDrag(
+  placement: PanelPlacement,
+  view: Window,
+  onPlace: PanelProps['onPlace'],
+  panel: { current: HTMLDivElement | null },
+) {
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{ x: number; y: number; left: number; top: number; moved: boolean } | null>(
+    null,
+  );
+
+  const offsets = (event: PointerEvent) => {
+    const start = drag.current;
+    return start ? { left: start.left + event.clientX - start.x, top: start.top + event.clientY - start.y } : null;
+  };
+
+  return {
+    dragging,
+    handlers: {
+      onPointerDown(event: PointerEvent) {
+        if (event.button !== 0 || (event.target as Element | null)?.closest?.(NOT_A_DRAG)) return;
+        const box = panel.current?.getBoundingClientRect();
+        if (!box) return;
+        drag.current = { x: event.clientX, y: event.clientY, left: box.left, top: box.top, moved: false };
+        (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+      },
+      onPointerMove(event: PointerEvent) {
+        const start = drag.current;
+        const at = offsets(event);
+        if (!start || !at) return;
+        if (!start.moved && Math.hypot(event.clientX - start.x, event.clientY - start.y) < 4) return;
+        if (!start.moved) {
+          start.moved = true;
+          setDragging(true);
+        }
+        const position = clampFloating(at.left, at.top, placement.width, viewportOf(view));
+        onPlace({ dock: null, ...position, width: placement.width }, false);
+      },
+      onPointerUp(event: PointerEvent) {
+        const start = drag.current;
+        const at = offsets(event);
+        drag.current = null;
+        const target = event.currentTarget as HTMLElement;
+        if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
+        if (!start?.moved || !at) return;
+        setDragging(false);
+        onPlace(dropPlacement(event.clientX, at.left, at.top, placement.width, viewportOf(view)), true);
+      },
+      onDblClick(event: MouseEvent) {
+        if ((event.target as Element | null)?.closest?.(NOT_A_DRAG)) return;
+        onPlace({ ...placement, dock: nearestSide(placement, viewportOf(view)) }, true);
+      },
+    },
+  };
 }
 
 /**
@@ -694,8 +772,9 @@ export function Panel({
   picking,
   onTogglePicking,
   onClose,
-  side,
-  onFlip,
+  placement,
+  view,
+  onPlace,
   onSelectAncestor,
   onStep,
   structure,
@@ -710,15 +789,34 @@ export function Panel({
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
-  const [width, setWidthState] = useState(rememberedWidth);
   const body = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
+  const { dragging, handlers: dragHandlers } = useHeaderDrag(placement, view, onPlace, frame);
 
-  const setWidth = (next: number) => {
-    rememberedWidth = next;
-    setWidthState(next);
+  const viewport = viewportOf(view);
+  const side = nearestSide(placement, viewport);
+  const width = clampWidth(placement.width, viewport);
+  const floating = placement.dock === null;
+  const position = floating ? clampFloating(placement.x, placement.y, width, viewport) : null;
+  const style = position
+    ? { width: `${width}px`, left: `${position.x}px`, top: `${position.y}px` }
+    : { width: `${width}px` };
+
+  /** Frame attributes both the onboarding and the full panel share. */
+  const frameProps = {
+    ref: frame,
+    class: 'panel',
+    'data-side': placement.dock ?? 'float',
+    'data-dragging': dragging,
+    style,
   };
-
-  const style = { width: `${width}px` };
+  const resizeHandle = (
+    <ResizeHandle
+      edge={placement.dock === 'right' ? 'left' : 'right'}
+      width={width}
+      onResize={(next, commit) => onPlace({ ...placement, width: next }, commit)}
+    />
+  );
   const edits = data?.edits?.length ?? 0;
   const closeTitle = edits > 0 ? `Close — reverts ${plural(edits, 'change')} (Esc)` : 'Close (Esc)';
 
@@ -742,11 +840,11 @@ export function Panel({
 
   if (!data) {
     return (
-      <div class="panel" data-side={side} style={style}>
-        <ResizeHandle side={side} width={width} onResize={setWidth} />
+      <div {...frameProps}>
+        {resizeHandle}
         <div class="main">
           <header class="head">
-            <div class="head-top">
+            <div class="head-top" {...dragHandlers}>
               <span class="selector">Open Inspector</span>
               <div class="head-actions">
                 <InspectButton picking={picking} onToggle={onTogglePicking} />
@@ -794,8 +892,8 @@ export function Panel({
   }
 
   return (
-    <div class="panel" data-side={side} style={style}>
-      <ResizeHandle side={side} width={width} onResize={setWidth} />
+    <div {...frameProps}>
+      {resizeHandle}
       <Rail
         tab={tab}
         edits={edits}
@@ -810,9 +908,14 @@ export function Panel({
         <button
           type="button"
           class="icon-btn"
-          aria-label="Move the panel to the other side"
-          title="Move the panel to the other side"
-          onClick={onFlip}
+          aria-label={floating ? `Dock the panel to the ${side}` : 'Move the panel to the other side'}
+          title={floating ? `Dock to the ${side}` : 'Move the panel to the other side'}
+          onClick={() =>
+            onPlace(
+              { ...placement, dock: floating ? side : side === 'right' ? 'left' : 'right' },
+              true,
+            )
+          }
         >
           <Icon name="flip" size={15} />
         </button>
@@ -834,7 +937,7 @@ export function Panel({
 
       <div class="main">
         <header class="head">
-          <div class="head-top">
+          <div class="head-top" {...dragHandlers}>
             <span class="selector" title={data.selectorLabel}>
               {data.selectorLabel}
             </span>

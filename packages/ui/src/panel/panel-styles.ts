@@ -134,6 +134,13 @@ export const PANEL_STYLES = `
   }
 
   .panel[data-side='left'] { right: auto; left: 12px; }
+  /*
+   * Floating where it was dropped: its top-left corner comes inline, and it
+   * still runs down to the bottom margin, so the body keeps all the height
+   * there is below it.
+   */
+  .panel[data-side='float'] { right: auto; bottom: 12px; }
+  .panel[data-dragging='true'] { user-select: none; }
 
   /* Everything but the rail: header, the tab's content, the footer. */
   .main {
@@ -392,6 +399,10 @@ export const PANEL_STYLES = `
 
   .head-top { display: flex; align-items: center; gap: 8px; min-height: 26px; }
 
+  /* The header is the handle the panel is dragged by; its controls stay clickable. */
+  .head-top { cursor: grab; touch-action: none; }
+  .panel[data-dragging='true'] .head-top { cursor: grabbing; }
+
   /*
    * Ink, not accent. Accent marks what you have changed or switched on; the
    * element's name is neither, and painting it orange made it compete with
@@ -495,7 +506,8 @@ export const PANEL_STYLES = `
     cursor: ew-resize;
     touch-action: none;
   }
-  .panel[data-side='left'] .resize-handle { left: auto; right: 0; }
+  .panel[data-side='left'] .resize-handle,
+  .panel[data-side='float'] .resize-handle { left: auto; right: 0; }
   .resize-handle::after {
     content: '';
     position: absolute;
@@ -506,7 +518,8 @@ export const PANEL_STYLES = `
     background: transparent;
     transition: background 120ms ease-out;
   }
-  .panel[data-side='left'] .resize-handle::after { left: auto; right: 0; }
+  .panel[data-side='left'] .resize-handle::after,
+  .panel[data-side='float'] .resize-handle::after { left: auto; right: 0; }
   .resize-handle:hover::after,
   .resize-handle:focus-visible::after,
   .resize-handle[data-dragging='true']::after { background: var(--accent); }

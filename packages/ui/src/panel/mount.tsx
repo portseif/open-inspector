@@ -3,7 +3,7 @@ import { lockHost, raiseToTopLayer } from '../host.js';
 import { Panel } from './Panel.jsx';
 import { EditingContext, type EditingApi } from './editing.jsx';
 import type { StructureApi } from './structure-tree.jsx';
-import type { InspectorSettings } from '../settings.js';
+import { DEFAULT_SETTINGS, type InspectorSettings, type PanelPlacement } from '../settings.js';
 import { PANEL_STYLES } from './panel-styles.js';
 import { BOX_DIAGRAM_STYLES } from './box-diagram.jsx';
 import type { PanelData } from './view-model.js';
@@ -22,6 +22,11 @@ export interface PanelHandle {
   setConfirmClose(pending: number | null): void;
   /** Move back above anything that entered the top layer after us. */
   raise(): void;
+  /**
+   * Put the panel where it was saved. Ignored once it has been moved here: a
+   * saved position read late must not yank the panel out from under a drag.
+   */
+  setPlacement(placement: PanelPlacement): void;
   /** True if the element belongs to the panel — used to avoid inspecting ourselves. */
   owns(element: Element): boolean;
   destroy(): void;
@@ -39,6 +44,10 @@ export interface PanelOptions {
   onChangeSettings?: (next: Partial<InspectorSettings>) => void;
   /** Whether those changes are kept beyond this session. */
   settingsSaved?: boolean;
+  /** Where the panel opens. Defaults to docked right. */
+  placement?: PanelPlacement;
+  /** The panel was moved, docked or resized and has settled there. */
+  onPlacementChange?: (placement: PanelPlacement) => void;
   /** A breadcrumb entry was clicked; depth 0 is the current element. */
   onSelectAncestor?: (depth: number) => void;
   /** A tree step arrow was pressed. */
@@ -117,7 +126,9 @@ export function createPanel(options: PanelOptions): PanelHandle {
   let data: PanelData | null = null;
   let pinned = false;
   let picking = true;
-  let side: 'left' | 'right' = 'right';
+  let placement = options.placement ?? DEFAULT_SETTINGS.panel;
+  let movedHere = false;
+  const view = doc.defaultView ?? window;
   let confirmClose: number | null = null;
   let attached = false;
 
@@ -134,16 +145,19 @@ export function createPanel(options: PanelOptions): PanelHandle {
         data={data}
         pinned={pinned}
         picking={picking}
-        side={side}
+        placement={placement}
+        view={view}
         onTogglePicking={() => options.onTogglePicking?.()}
         onSelectAncestor={(depth) => options.onSelectAncestor?.(depth)}
         onStep={(direction) => options.onStep?.(direction)}
         structure={options.structure}
         onChangeSettings={options.onChangeSettings}
         settingsSaved={options.settingsSaved ?? false}
-        onFlip={() => {
-          side = side === 'right' ? 'left' : 'right';
+        onPlace={(next, commit) => {
+          placement = next;
+          movedHere = true;
           paint();
+          if (commit) options.onPlacementChange?.(next);
         }}
         onClose={options.onClose}
         confirmClose={confirmClose}
@@ -179,6 +193,11 @@ export function createPanel(options: PanelOptions): PanelHandle {
     },
     raise() {
       if (attached && host.isConnected) raiseToTopLayer(host as HTMLElement);
+    },
+    setPlacement(next) {
+      if (movedHere) return;
+      placement = next;
+      paint();
     },
     owns(element) {
       return element === host || host.contains(element);
