@@ -24,7 +24,7 @@ to send it.
 **Your settings, and nothing else.**
 
 The choices you make in the panel's settings view — today, which notation
-colours are written in — and where you last left the panel (docked or floating,
+colors are written in — and where you last left the panel (docked or floating,
 and how wide) are kept with `storage.local`, on this device. Never
 `storage.sync`, which would upload them to the browser vendor; the build fails
 if that ever appears. Nothing about any page is stored: not a URL, not a value,

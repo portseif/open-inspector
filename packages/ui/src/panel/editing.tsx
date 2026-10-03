@@ -148,8 +148,8 @@ function ColorWell({
       type="color"
       class="color-well"
       value={hex}
-      aria-label="Pick a colour"
-      title={`Pick a colour${alpha < 1 ? ` — the current ${Math.round(alpha * 100)}% opacity is kept` : ''}`}
+      aria-label="Pick a color"
+      title={`Pick a color${alpha < 1 ? ` — the current ${Math.round(alpha * 100)}% opacity is kept` : ''}`}
       onInput={(event) => {
         const picked = (event.target as HTMLInputElement).value;
         if (alpha >= 1) {

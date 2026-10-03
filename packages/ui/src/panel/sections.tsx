@@ -273,7 +273,7 @@ function Eyedropper() {
   const formats = picked ? color.formatColor(picked) : null;
 
   return (
-    <Group title="Sample a colour">
+    <Group title="Sample a color">
       <div class="export-actions">
         <button
           type="button"
@@ -389,7 +389,7 @@ export function ColorSection({ data }: SectionProps) {
     <>
       <Group title="On this element">
         {data.colors.length === 0 ? (
-          <Empty>This element declares no colours of its own.</Empty>
+          <Empty>This element declares no colors of its own.</Empty>
         ) : (
           // Colours that came from exactly one declaration carry it, and are
           // editable with a picker. A shadow or gradient stop lives inside a
@@ -462,7 +462,7 @@ export function ColorSection({ data }: SectionProps) {
         {!page ? (
           <Empty>Scanning…</Empty>
         ) : page.palette.length === 0 ? (
-          <Empty>No colours found.</Empty>
+          <Empty>No colors found.</Empty>
         ) : (
           <Palette entries={page.palette} format={format} />
         )}

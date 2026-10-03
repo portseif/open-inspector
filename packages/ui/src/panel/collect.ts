@@ -148,10 +148,10 @@ export const BACKDROP_REASONS: Record<color.BackdropUncertainty, a11y.Indetermin
 
 /** Plain-language explanation of an unreadable backdrop, for the panel. */
 const BACKDROP_EXPLANATIONS: Record<color.BackdropUncertainty, string> = {
-  gradient: 'The text sits on a gradient, so there is no single background colour to grade against.',
+  gradient: 'The text sits on a gradient, so there is no single background color to grade against.',
   image: 'The text sits on an image, so the contrast depends on which pixels are behind it.',
-  blend: 'A blend mode is in play, so the painted background is not any declared colour.',
-  unreadable: 'A background colour on an ancestor could not be parsed, so any ratio would be a guess.',
+  blend: 'A blend mode is in play, so the painted background is not any declared color.',
+  unreadable: 'A background color on an ancestor could not be parsed, so any ratio would be a guess.',
   'depth-limit':
     'Every ancestor up to the root is translucent, so nothing establishes an opaque background.',
 };
@@ -193,7 +193,7 @@ function readContrast(element: Element, view: Window): ContrastInfo | null {
       reason:
         backdrop.kind === 'indeterminate'
           ? BACKDROP_EXPLANATIONS[backdrop.reason]
-          : 'The background could not be resolved to one opaque colour, so any ratio would be a guess.',
+          : 'The background could not be resolved to one opaque color, so any ratio would be a guess.',
     };
   }
 
