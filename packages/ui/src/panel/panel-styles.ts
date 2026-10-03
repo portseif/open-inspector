@@ -1609,6 +1609,9 @@ export const PANEL_STYLES = `
     background: var(--bg-sunk);
     border: 1px solid var(--rule-strong);
     border-radius: 6px;
+    /* Wrapped like the code blocks; set here, not left to each engine's defaults. */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
   .svg-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   /* Under an asset row: a bounded block, since the list goes on below it. */
@@ -1627,7 +1630,14 @@ export const PANEL_STYLES = `
     line-height: 1.55;
     color: var(--ink-soft);
     overflow: auto;
-    white-space: pre;
+    /*
+     * Wrapped, so a long line reads without scrolling sideways in a narrow
+     * panel. "anywhere" rather than "break-word": minified markup and path
+     * data are one unbroken run, and only "anywhere" also lets the block's
+     * own width shrink to the panel instead of the run stretching it.
+     */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   pre + .empty { margin-top: 4px; }
