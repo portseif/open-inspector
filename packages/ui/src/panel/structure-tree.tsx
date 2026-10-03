@@ -233,6 +233,11 @@ export function StructureTree({ info, api }: { info: StructureInfo; api: Structu
             {rest ? <span class="node-attrs">{rest}</span> : null}
             {row.text ? <span class="node-text">{row.text}</span> : null}
             {row.address ? <span class="node-address">{row.address}</span> : null}
+            {row.file ? (
+              <span class="node-file" data-inline={row.fileUrl === undefined} title={row.fileUrl}>
+                {row.file}
+              </span>
+            ) : null}
           </div>
         );
       })}

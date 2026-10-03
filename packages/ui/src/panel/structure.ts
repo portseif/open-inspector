@@ -163,6 +163,10 @@ export function createStructureModel(
         };
         if (row.text) info.text = row.text;
         if (row.address) info.address = row.address;
+        if (row.file) {
+          info.file = row.file.name;
+          if (row.file.url) info.fileUrl = row.file.url;
+        }
         return info;
       });
 

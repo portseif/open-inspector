@@ -237,6 +237,34 @@ describe('flattenStructure', () => {
     expect(rows[0]).toMatchObject({ address: null });
   });
 
+  it('names the file behind scripts, stylesheet links and style blocks', () => {
+    // Never connected to the document, so happy-dom does not try to load them.
+    const root = document.createElement('div');
+    const add = (tag: string, attributes: Record<string, string>, text = '') => {
+      const element = document.createElement(tag);
+      for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+      element.textContent = text;
+      root.appendChild(element);
+    };
+    add('script', { src: '/assets/app.4f2a.js?v=3' });
+    add('script', {}, 'window.x = 1;');
+    add('link', { rel: 'stylesheet', href: 'https://cdn.example.com/css/site%20main.css' });
+    add('style', { 'data-vite-dev-id': '/src/components/Card.module.css' });
+    add('style', {}, '.a {}');
+    add('p', {}, 'text');
+
+    const { rows } = flattenStructure(root, { isExpanded: expandedSet(root) });
+
+    expect(rows.slice(1).map((row) => (row.kind === 'more' ? null : row.file))).toEqual([
+      { name: 'app.4f2a.js', url: '/assets/app.4f2a.js?v=3' },
+      { name: 'inline', url: null },
+      { name: 'site main.css', url: 'https://cdn.example.com/css/site%20main.css' },
+      { name: 'Card.module.css', url: '/src/components/Card.module.css' },
+      { name: 'inline', url: null },
+      null,
+    ]);
+  });
+
   it('lists an open shadow root ahead of the light-DOM children', () => {
     fixture('<div id="host"><span id="slotted">light</span></div>');
     const host = at('#host');

@@ -160,6 +160,12 @@ export interface StructureNodeRow {
   text: string | null;
   /** A frame's address: which document is in there, when its tree is not. */
   address: string | null;
+  /**
+   * Which file a script, stylesheet link or style block came from: its name,
+   * and the full URL behind it when there is one. `inline` when it is written
+   * into the page itself.
+   */
+  file: { name: string; url: string | null } | null;
   expandable: boolean;
   expanded: boolean;
 }
@@ -218,6 +224,13 @@ const NO_TEXT_PREVIEW = new Set(['SCRIPT', 'STYLE', 'TEMPLATE', 'NOSCRIPT']);
 const TEXT_PREVIEW_LENGTH = 40;
 const FRAME_TAGS = new Set(['IFRAME', 'FRAME']);
 
+/**
+ * The attribute dev servers put on the style blocks they inject, naming the
+ * source file. Vite writes `data-vite-dev-id`; without one, a style block is
+ * just inline.
+ */
+const STYLE_SOURCE_ATTRIBUTES = ['data-vite-dev-id'];
+
 function isShadowRoot(node: StructureNode): node is ShadowRoot {
   return node.nodeType === DOCUMENT_FRAGMENT_NODE;
 }
@@ -264,6 +277,51 @@ function frameAddress(element: Element): string | null {
   return element.hasAttribute('srcdoc') ? 'about:srcdoc' : 'about:blank';
 }
 
+/** The last path segment of a URL, which is what people call a file. */
+export function fileName(url: string, base?: string): string {
+  try {
+    const parsed = new URL(url, base);
+    if (parsed.protocol === 'data:') return 'data URI';
+    if (parsed.protocol === 'blob:') return 'blob';
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    const last = segments[segments.length - 1];
+    if (!last) return parsed.host || url;
+    try {
+      return decodeURIComponent(last);
+    } catch {
+      return last;
+    }
+  } catch {
+    return url;
+  }
+}
+
+/** Where a script, linked resource or style block came from. */
+function assetFile(element: Element): StructureNodeRow['file'] {
+  const tag = element.tagName.toUpperCase();
+  const base = element.baseURI || undefined;
+
+  if (tag === 'SCRIPT') {
+    const src = element.getAttribute('src');
+    return src ? { name: fileName(src, base), url: src } : { name: 'inline', url: null };
+  }
+
+  if (tag === 'LINK') {
+    const href = element.getAttribute('href');
+    return href ? { name: fileName(href, base), url: href } : null;
+  }
+
+  if (tag === 'STYLE') {
+    for (const attribute of STYLE_SOURCE_ATTRIBUTES) {
+      const source = element.getAttribute(attribute);
+      if (source) return { name: fileName(source, 'file:///'), url: source };
+    }
+    return { name: 'inline', url: null };
+  }
+
+  return null;
+}
+
 function nodeRow(
   node: StructureNode,
   depth: number,
@@ -282,6 +340,7 @@ function nodeRow(
         label: '#shadow-root (open)',
         text: null,
         address: null,
+        file: null,
         expandable,
         expanded,
       },
@@ -303,6 +362,7 @@ function nodeRow(
       label,
       text: expandable ? null : textPreview(node),
       address: frameAddress(node),
+      file: assetFile(node),
       expandable,
       expanded,
     },

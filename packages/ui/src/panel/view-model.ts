@@ -72,6 +72,10 @@ export interface StructureRowInfo {
   text?: string | undefined;
   /** A frame's address. */
   address?: string | undefined;
+  /** The file a script, linked resource or style block came from, or `inline`. */
+  file?: string | undefined;
+  /** The full URL behind `file`, when there is one. */
+  fileUrl?: string | undefined;
   expandable: boolean;
   expanded: boolean;
   /** "more" rows: how many children are not listed yet. */

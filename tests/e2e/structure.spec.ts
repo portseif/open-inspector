@@ -174,7 +174,14 @@ test.describe('structure drawer', () => {
 
     const head = drawer(page).locator('.node', { hasText: /^head$/ });
     await head.locator('.node-twisty').click();
-    await drawer(page).locator('.node', { hasText: /^style$/ }).first().click();
+
+    // Matched by tag: the row also names where the block came from.
+    const style = drawer(page)
+      .locator('.node')
+      .filter({ has: page.locator('.node-tag', { hasText: /^style$/ }) })
+      .first();
+    await expect(style.locator('.node-file')).toHaveText('inline');
+    await style.click();
 
     await expect(header(page)).toHaveText('style');
     await expect(panel(page).locator('.group-title', { hasText: 'Source · CSS' })).toBeVisible();

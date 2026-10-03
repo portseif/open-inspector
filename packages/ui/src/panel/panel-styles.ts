@@ -1061,6 +1061,8 @@ export const PANEL_STYLES = `
   .node-text::before { content: '“'; }
   .node-text::after { content: '”'; }
   .node-address { margin-left: 6px; color: var(--ink-soft); }
+  .node-file { margin-left: 6px; color: var(--ink-soft); }
+  .node-file[data-inline='true'] { color: var(--ink-mute); font-style: italic; }
   .node-more { color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; }
 
   .structure-note {
