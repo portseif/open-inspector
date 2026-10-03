@@ -9,7 +9,7 @@ import {
   stepTree,
   type TreeDirection,
 } from '@open-inspector/core';
-import { createOverlay, type Overlay } from './overlay.js';
+import { createOverlay, type BoxFocus, type Overlay } from './overlay.js';
 import { createPanel, type PanelHandle } from './panel/mount.jsx';
 import { collectElementData } from './panel/collect.js';
 import { createPageScanner, type ContrastAudit, type PageScanner } from './panel/page.js';
@@ -214,6 +214,8 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
    * selection, because hovering a row is looking, not choosing.
    */
   let previewElement: Element | null = null;
+  /** The part of the box model the pointer is on in the panel's diagram. */
+  let boxFocus: BoxFocus | null = null;
 
   function ensurePseudoStates(): edit.PseudoStateController {
     pseudoStates ??= edit.createPseudoStateController(doc);
@@ -451,6 +453,18 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
         selectElement(element);
       },
 
+      focusBox(focus: BoxFocus | null): void {
+        const same =
+          focus === boxFocus ||
+          (focus !== null &&
+            boxFocus !== null &&
+            focus.region === boxFocus.region &&
+            focus.side === boxFocus.side);
+        if (same) return;
+        boxFocus = focus;
+        scheduleRender();
+      },
+
       /**
        * True when the window ended up exactly where it started.
        *
@@ -620,8 +634,12 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     surface.update(buildData(element, null));
   }
 
-  /** Draw the highlight over one element. */
-  function paintOverlay(element: Element, boundary: PanelData['boundary']): void {
+  /** Draw the highlight over one element, or over one part of its box. */
+  function paintOverlay(
+    element: Element,
+    boundary: PanelData['boundary'],
+    focus: BoxFocus | null = null,
+  ): void {
     const descriptor = describeElement(element);
 
     ensureOverlay().show({
@@ -629,6 +647,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
       selectorLabel: descriptor.selectorLabel,
       dimensions: formatDimensions(descriptor.width, descriptor.height),
       boundary,
+      focus,
     });
   }
 
@@ -799,7 +818,13 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     if (previewElement) {
       if (previewElement.isConnected) paintOverlay(previewElement, null);
       else previewElement = null;
+      return;
     }
+
+    // So does a part of the diagram: the pointer is on the box model, and the
+    // page shows which part of the element that is, with the picker on or off.
+    const shown = pinnedElement ?? currentElement;
+    if (boxFocus && shown?.isConnected) paintOverlay(shown, null, boxFocus);
   }
 
   function renderSelection(): void {
@@ -1160,6 +1185,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     contrastAudit = null;
     structure = null;
     previewElement = null;
+    boxFocus = null;
     overrides?.clearAll();
     pseudoStates?.destroy();
     pseudoStates = null;

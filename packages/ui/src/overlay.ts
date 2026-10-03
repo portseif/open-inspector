@@ -1,6 +1,6 @@
 import { lockHost, raiseToTopLayer } from './host.js';
 import type { BoxModel, EdgeSizes, ProbeBoundary, Rect } from '@open-inspector/core';
-import { isEmptyRect } from '@open-inspector/core';
+import { isEmptyRect, round } from '@open-inspector/core';
 import { placeChip } from './chip-placement.js';
 import { OVERLAY_STYLES } from './overlay-styles.js';
 
@@ -17,11 +17,25 @@ const HOST_TAG = 'open-inspector-overlay';
  */
 const OVERLAY_Z_INDEX = '2147483646';
 
+export type BoxRegion = 'margin' | 'border' | 'padding' | 'content';
+export type BoxSide = 'top' | 'right' | 'bottom' | 'left';
+
+/**
+ * One part of the box model, singled out — what the pointer is on in the
+ * panel's diagram. A side narrows a band to that edge; content has none.
+ */
+export interface BoxFocus {
+  region: BoxRegion;
+  side: BoxSide | null;
+}
+
 export interface OverlayTarget {
   box: BoxModel;
   selectorLabel: string;
   dimensions: string;
   boundary?: ProbeBoundary | null;
+  /** Draw only this part, in its own colour, and name it on the chip. */
+  focus?: BoxFocus | null;
 }
 
 export interface Overlay {
@@ -35,9 +49,58 @@ export interface Overlay {
   destroy(): void;
 }
 
-type LayerName = 'margin' | 'border' | 'padding' | 'content';
+type LayerName = BoxRegion;
 
 const LAYER_ORDER: readonly LayerName[] = ['margin', 'border', 'padding', 'content'];
+
+/** The longhand behind one edge. Border edges are widths, not the shorthand. */
+export function edgeProperty(region: Exclude<BoxRegion, 'content'>, side: BoxSide): string {
+  return region === 'border' ? `border-${side}-width` : `${region}-${side}`;
+}
+
+function px(value: number): string {
+  return value === 0 ? '0' : `${round(value)}px`;
+}
+
+/**
+ * Name a focused part the way CSS would write it.
+ *
+ * An edge is its longhand (`padding-top: 16px`); a whole band is the shortest
+ * shorthand that says the same thing (`padding: 8px 16px`), so the chip reads
+ * like something you could paste.
+ */
+export function describeFocus(box: BoxModel, focus: BoxFocus): string {
+  if (focus.region === 'content') {
+    return `content: ${round(box.content.width)} × ${round(box.content.height)}`;
+  }
+
+  const edges = box.edges[focus.region];
+  if (focus.side) return `${edgeProperty(focus.region, focus.side)}: ${px(edges[focus.side])}`;
+
+  const [top, right, bottom, left] = [edges.top, edges.right, edges.bottom, edges.left].map(px);
+  const values =
+    top === right && right === bottom && bottom === left
+      ? [top]
+      : top === bottom && left === right
+        ? [top, right]
+        : left === right
+          ? [top, right, bottom]
+          : [top, right, bottom, left];
+
+  const name = focus.region === 'border' ? 'border-width' : focus.region;
+  return `${name}: ${values.join(' ')}`;
+}
+
+/** A band's edges with everything but the focused side zeroed out. */
+function focusedEdges(region: LayerName, edges: EdgeSizes, focus: BoxFocus | null): EdgeSizes {
+  if (!focus || focus.region !== region || !focus.side) return edges;
+  return {
+    top: focus.side === 'top' ? edges.top : 0,
+    right: focus.side === 'right' ? edges.right : 0,
+    bottom: focus.side === 'bottom' ? edges.bottom : 0,
+    left: focus.side === 'left' ? edges.left : 0,
+  };
+}
 
 /**
  * Pin down the host element's own geometry with `!important`.
@@ -212,19 +275,33 @@ export function createOverlay(doc: Document = document, options: OverlayOptions 
       attach();
 
       const { box } = target;
+      const focus = target.focus ?? null;
       const margin = layers.get('margin');
       const border = layers.get('border');
       const padding = layers.get('padding');
       const content = layers.get('content');
 
       // Each ring spans from its own box inward to the next one.
-      if (margin) positionRing(margin, box.margin, box.edges.margin);
-      if (border) positionRing(border, box.border, box.edges.border);
-      if (padding) positionRing(padding, box.padding, box.edges.padding);
+      if (margin) positionRing(margin, box.margin, focusedEdges('margin', box.edges.margin, focus));
+      if (border) positionRing(border, box.border, focusedEdges('border', box.edges.border, focus));
+      if (padding) {
+        positionRing(padding, box.padding, focusedEdges('padding', box.edges.padding, focus));
+      }
       if (content) positionFill(content, box.content);
 
+      /**
+       * With a part in focus, only that part is drawn, filled with its own
+       * colour at full strength. Three faint bands around the one you asked
+       * about make it the hardest of the four to find.
+       */
+      for (const [name, layer] of layers) {
+        const focused = focus?.region === name;
+        layer.dataset['focused'] = String(focused);
+        if (focus && !focused) layer.dataset['visible'] = 'false';
+      }
+
       selectorEl.textContent = target.selectorLabel;
-      dimensionsEl.textContent = target.dimensions;
+      dimensionsEl.textContent = focus ? describeFocus(box, focus) : target.dimensions;
 
       const note = boundaryNote(target.boundary);
       boundaryEl.textContent = note;

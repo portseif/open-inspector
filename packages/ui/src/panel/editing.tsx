@@ -5,6 +5,7 @@ import { CopyButton, Empty, Group, Swatch } from './primitives.jsx';
 import { filterFields, useSearch } from './search.jsx';
 import { color } from '@open-inspector/core';
 import type { ContrastAudit } from './page.js';
+import type { BoxFocus } from '../overlay.js';
 
 /**
  * Editing wiring for the panel.
@@ -53,6 +54,11 @@ export interface EditingApi {
   runContrastAudit(): void;
   /** Jump to an element, used to reach a failure from the audit list. */
   selectElement(element: Element): void;
+  /**
+   * Single out one part of the box model on the page — what the pointer is on
+   * in the diagram — or null to draw the whole box again.
+   */
+  focusBox(focus: BoxFocus | null): void;
   /**
    * Called when the user starts editing.
    *

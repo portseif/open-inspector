@@ -1,6 +1,6 @@
 import { testWithHostAccess as test, expect, FIXTURE_URL } from './fixtures.js';
 import type { Locator, Page } from '@playwright/test';
-import { openInspector, panel, pin } from './support/panel.js';
+import { openInspector, overlayLabel, panel, pin } from './support/panel.js';
 
 /**
  * The structure drawer: the document as a tree, driven through the real
@@ -26,54 +26,6 @@ function selectedRow(page: Page): Locator {
 
 function header(page: Page): Locator {
   return panel(page).locator('.selector');
-}
-
-interface CdpNode {
-  nodeName: string;
-  nodeValue?: string;
-  attributes?: string[];
-  children?: CdpNode[];
-  shadowRoots?: CdpNode[];
-}
-
-/**
- * The label on the overlay's chip — the element it is drawn over.
- *
- * The overlay's shadow root is closed, so the page cannot read it, and a
- * clipped screenshot does not capture the top layer it lives in. The DevTools
- * protocol can pierce closed roots, which is what this asks it to do.
- */
-async function overlayLabel(page: Page): Promise<string | null> {
-  const cdp = await page.context().newCDPSession(page);
-  try {
-    const { root } = (await cdp.send('DOM.getDocument', { depth: -1, pierce: true })) as {
-      root: CdpNode;
-    };
-
-    const find = (node: CdpNode, match: (candidate: CdpNode) => boolean): CdpNode | null => {
-      if (match(node)) return node;
-      for (const child of [...(node.shadowRoots ?? []), ...(node.children ?? [])]) {
-        const found = find(child, match);
-        if (found) return found;
-      }
-      return null;
-    };
-
-    const host = find(root, (node) => node.nodeName === 'OPEN-INSPECTOR-OVERLAY');
-    const chip = host && find(host, (node) => attribute(node, 'class') === 'chip');
-    if (!chip || attribute(chip, 'data-visible') !== 'true') return null;
-
-    const label = find(chip, (node) => attribute(node, 'class') === 'selector');
-    return label?.children?.[0]?.nodeValue ?? null;
-  } finally {
-    await cdp.detach();
-  }
-}
-
-function attribute(node: CdpNode, name: string): string | null {
-  const attributes = node.attributes ?? [];
-  const index = attributes.indexOf(name);
-  return index >= 0 && index % 2 === 0 ? (attributes[index + 1] ?? null) : null;
 }
 
 async function nextFrames(page: Page): Promise<void> {

@@ -59,6 +59,15 @@ export const OVERLAY_STYLES = `
     outline-offset: -1px;
   }
 
+  /*
+   * One part singled out from the panel's diagram: drawn alone, so it can
+   * take its colour at full strength without stacking over anything.
+   */
+  .margin[data-focused='true']  { border-color: rgba(246, 178, 107, 0.7); }
+  .border[data-focused='true']  { border-color: rgba(253, 224, 71, 0.75); }
+  .padding[data-focused='true'] { border-color: rgba(147, 196, 125, 0.7); }
+  .content[data-focused='true'] { background: rgba(111, 168, 220, 0.5); }
+
   .chip {
     position: absolute;
     display: none;
