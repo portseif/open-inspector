@@ -1779,7 +1779,7 @@ export const PANEL_STYLES = `
       transparent 1px var(--scale-tick, 8px)
     );
   }
-  /* Neutral: a reading, not a change, and accent means "changed". */
+  /* Neutral: a reading, not a change. Only the values off the grid take the accent. */
   .scale-bar {
     display: block;
     max-width: 100%;
@@ -1787,10 +1787,10 @@ export const PANEL_STYLES = `
     border-radius: 2px;
     background: var(--ink-soft);
   }
-  .scale-row[data-off='true'] .scale-value { color: var(--warn); }
+  .scale-row[data-off='true'] .scale-value { color: var(--accent); }
   .scale-row[data-off='true'] .scale-bar,
-  .scale-legend .scale-key { background: var(--warn); }
-  .scale-row[data-off='true'] .scale-sample { color: var(--warn); }
+  .scale-legend .scale-key { background: var(--accent); }
+  .scale-row[data-off='true'] .scale-sample { color: var(--accent); }
   .scale-legend {
     display: flex;
     align-items: center;
