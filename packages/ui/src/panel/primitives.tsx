@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
+import { Highlighted, type CodeLanguage } from './highlight.jsx';
 import { Icon } from './icons.jsx';
 import { filterFields, useSearch } from './search.jsx';
 import type { Field } from './view-model.js';
@@ -110,11 +111,19 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
  * than in a bar above it. Outside the scrolling block, so it stays put while
  * a long one scrolls.
  */
-export function CodeBlock({ text }: { text: string }) {
+export function CodeBlock({
+  text,
+  language,
+}: {
+  text: string;
+  language?: CodeLanguage | undefined;
+}) {
   return (
     <div class="code-block">
       {/* Focusable, so a keyboard user can scroll a long block. */}
-      <pre tabIndex={0}>{text}</pre>
+      <pre tabIndex={0}>
+        <Highlighted text={text} language={language} />
+      </pre>
       <CopyButton text={text} />
     </div>
   );

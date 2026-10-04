@@ -1,5 +1,6 @@
 import type { script } from '@open-inspector/core';
 import type { PanelData } from './view-model.js';
+import { Highlighted } from './highlight.jsx';
 import { CopyButton, Empty, Group, formatBytes } from './primitives.jsx';
 
 const VIA_LABELS: Record<script.HandlerSource, string> = {
@@ -23,7 +24,7 @@ function HandlerItem({ handler }: { handler: script.ScriptHandler }) {
       {/* Focusable, so a keyboard user can scroll a long one. */}
       {handler.source ? (
         <pre class="js-source" tabIndex={0}>
-          {handler.source}
+          <Highlighted text={handler.source} language="javascript" />
         </pre>
       ) : null}
     </li>
@@ -50,7 +51,7 @@ function ScriptItem({ entry }: { entry: script.PageScript }) {
         <details class="js-more">
           <summary>source</summary>
           <pre class="js-source" tabIndex={0}>
-            {entry.text}
+            <Highlighted text={entry.text} language="javascript" />
           </pre>
         </details>
       ) : null}

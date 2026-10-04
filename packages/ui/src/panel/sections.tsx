@@ -23,6 +23,7 @@ import { assetUrlList, downloadAsset, safeFilename, withExtension } from './down
 import { color, svg } from '@open-inspector/core';
 import { useSearch } from './search.jsx';
 import { SvgTool } from './svg-tool.jsx';
+import { Highlighted, type CodeLanguage } from './highlight.jsx';
 
 /** Shared shape: every section renders from `PanelData` and nothing else. */
 interface SectionProps {
@@ -786,6 +787,14 @@ export function AssetsSection({ data }: SectionProps) {
   );
 }
 
+/** The grammar for each source heading `collect` writes. */
+const SOURCE_LANGUAGES: Record<string, CodeLanguage> = {
+  CSS: 'css',
+  JavaScript: 'javascript',
+  JSON: 'json',
+  HTML: 'markup',
+};
+
 /**
  * The Styles tab for an element that does not render.
  *
@@ -806,7 +815,9 @@ export function SourceSection({ data }: SectionProps) {
       />
 
       <Group title={`Source · ${source.language}`}>
-        {source.text ? <CodeBlock text={source.text} /> : null}
+        {source.text ? (
+          <CodeBlock text={source.text} language={SOURCE_LANGUAGES[source.language]} />
+        ) : null}
         {source.note ? <Empty>{source.note}</Empty> : null}
         {source.truncated ? (
           <Empty>This is long enough that only the first 100,000 characters are shown.</Empty>
@@ -863,16 +874,19 @@ export function MarkupSection({ data }: SectionProps) {
           />
         </Group>
       ) : (
-        <MarkupText text={data.markup[dialect === 'jsx' ? 'jsx' : 'html']} />
+        <MarkupText
+          text={data.markup[dialect === 'jsx' ? 'jsx' : 'html']}
+          language={dialect === 'jsx' ? 'jsx' : 'markup'}
+        />
       )}
     </>
   );
 }
 
-function MarkupText({ text }: { text: string }) {
+function MarkupText({ text, language }: { text: string; language: CodeLanguage }) {
   return (
     <Group title="Markup">
-      <CodeBlock text={text} />
+      <CodeBlock text={text} language={language} />
       <Empty>
         Framework attributes, scripts and inline styles are stripped, and the subtree stops at six
         levels — this is markup to paste, not a recording of the live DOM.
@@ -880,6 +894,15 @@ function MarkupText({ text }: { text: string }) {
     </Group>
   );
 }
+
+/** The grammar for each export format; the AI handoff is prose, and stays plain. */
+const EXPORT_LANGUAGES: Record<string, CodeLanguage> = {
+  css: 'css',
+  tailwind: 'javascript',
+  json: 'json',
+  w3c: 'json',
+  scss: 'scss',
+};
 
 export function ExportSection({ data }: SectionProps) {
   const formats = data.exports ?? [];
@@ -913,7 +936,9 @@ export function ExportSection({ data }: SectionProps) {
         <div class="export-actions">
           <CopyButton text={current.text} label="copy all" />
         </div>
-        <pre tabIndex={0}>{current.text}</pre>
+        <pre tabIndex={0}>
+          <Highlighted text={current.text} language={EXPORT_LANGUAGES[current.id]} />
+        </pre>
       </Group>
     </>
   );

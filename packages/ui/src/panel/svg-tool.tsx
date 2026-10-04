@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'preact/hooks';
 import { assets, svg } from '@open-inspector/core';
 import { useEditing } from './editing.jsx';
+import { Highlighted } from './highlight.jsx';
 import { CopyButton, Empty, Group, formatBytes } from './primitives.jsx';
 
 type SvgMode = 'optimized' | 'minified' | 'beautified';
@@ -101,7 +102,9 @@ export function SvgTool({
       </div>
 
       {/* Focusable, so a keyboard user can scroll a long file. */}
-      <pre tabIndex={0}>{text}</pre>
+      <pre tabIndex={0}>
+        <Highlighted text={text} language="markup" />
+      </pre>
     </div>
   );
 }

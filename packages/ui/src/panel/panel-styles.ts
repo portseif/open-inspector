@@ -34,6 +34,11 @@ const LIGHT_PANEL = `
       --bd-content: #cfe1ec;
       --bd-ink: #14181c;
       --bd-zero: #50555b;
+      --syn-keyword: #1c58b8;
+      --syn-name: #0b6a62;
+      --syn-string: #2f6a30;
+      --syn-number: #8a5200;
+      --syn-selector: #6a3fbf;
       box-shadow: 0 16px 48px -18px rgba(20, 24, 28, 0.4), 0 1px 3px rgba(20, 24, 28, 0.16);
 `;
 
@@ -125,6 +130,16 @@ export const PANEL_STYLES = `
     --bd-content: #294453;
     --bd-ink: #e6eaec;
     --bd-zero: #b3bcc2;
+    /*
+     * Syntax colors for the code blocks. Each clears 7.8:1 on every surface
+     * code sits on here, and 5.4:1 in the light block; comments and
+     * punctuation take --ink-mute, already held to AA.
+     */
+    --syn-keyword: #79b8ff;
+    --syn-name: #5fd0c4;
+    --syn-string: #9fcf7f;
+    --syn-number: #e3b46a;
+    --syn-selector: #c3a6ff;
 
     position: fixed;
     top: 12px;
@@ -1963,6 +1978,20 @@ ${LIGHT_PANEL}  }
 
   pre + .empty,
   .code-block + .empty { margin-top: 4px; }
+
+  /*
+   * Prism's token types, folded into a few colors. Nested tokens carry their
+   * own class, so an attribute inside a tag or a quote inside a string takes
+   * its own color rather than the one around it.
+   */
+  .tok-comment, .tok-prolog, .tok-doctype, .tok-cdata,
+  .tok-punctuation, .tok-operator { color: var(--ink-mute); }
+  .tok-tag, .tok-keyword, .tok-atrule, .tok-rule, .tok-important { color: var(--syn-keyword); }
+  .tok-attr-name, .tok-property, .tok-function { color: var(--syn-name); }
+  .tok-string, .tok-attr-value, .tok-url, .tok-template-string, .tok-regex,
+  .tok-char { color: var(--syn-string); }
+  .tok-number, .tok-boolean, .tok-null, .tok-constant, .tok-entity { color: var(--syn-number); }
+  .tok-selector, .tok-class-name, .tok-variable { color: var(--syn-selector); }
 
   /*
    * A block with its copy button in the corner. The block keeps clear of the
