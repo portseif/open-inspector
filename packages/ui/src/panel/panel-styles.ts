@@ -1617,6 +1617,8 @@ ${LIGHT_PANEL}  }
     background: var(--bg-sunk);
     padding: 4px 10px;
     border-radius: 6px;
+    /* The same faint edge as the copy buttons, firmed up on hover below. */
+    border-color: var(--rule);
   }
   .sample-btn:hover { border-color: var(--rule-strong); }
 
