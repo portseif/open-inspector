@@ -189,9 +189,9 @@ test.describe('copying', () => {
     await pin(page, '#hover-target');
     await openTab(page, 'assets');
 
-    // By its class, which stays put: the accessible name changes to "Copied",
-    // which a `name: 'Copy'` locator would stop matching.
-    const copy = assetRow(page, 'loaded.svg').locator('.copy-icon');
+    // By its copied state, which stays put: the accessible name changes to
+    // "Copied", which a `name: 'Copy'` locator would stop matching.
+    const copy = assetRow(page, 'loaded.svg').locator('.copy-icon[data-copied]');
     await copy.click();
     await expect(copy).toHaveText('Copied');
     await expect(copy).toHaveAttribute('data-copied', 'true');

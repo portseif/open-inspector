@@ -1562,11 +1562,15 @@ ${LIGHT_PANEL}  }
    * row, painted after, would cover the label.
    */
   .copy-icon { position: relative; }
+  /*
+   * Square, and as tall as a text button beside it: that one is a line of
+   * its text (1.5em) plus 1px of padding and 1px of border on each side.
+   */
   .copy.copy-icon {
     display: inline-grid;
     place-items: center;
-    width: 18px;
-    height: 18px;
+    width: calc(1.5em + 4px);
+    height: calc(1.5em + 4px);
     padding: 0;
   }
   .copy-icon .tab-label {

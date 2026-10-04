@@ -23,6 +23,7 @@ import { assetUrlList, downloadAsset, safeFilename, withExtension } from './down
 import { color, svg } from '@open-inspector/core';
 import { useSearch } from './search.jsx';
 import { SvgTool } from './svg-tool.jsx';
+import { Icon } from './icons.jsx';
 import type { CodeLanguage } from './highlight.jsx';
 
 /** Shared shape: every section renders from `PanelData` and nothing else. */
@@ -703,15 +704,11 @@ function AssetRow({ asset }: { asset: AssetEntry }) {
           {asset.url ? (
             <button
               type="button"
-              class="copy"
-              title={
-                asset.kind === 'inline svg'
-                  ? 'Save as an .svg file'
-                  : 'Save this file (the browser fetches it, from cache where it can)'
-              }
+              class="copy copy-icon"
               onClick={() => downloadAsset(asset, editing?.save)}
             >
-              save
+              <Icon name="export" size={12} />
+              <span class="tab-label">{asset.kind === 'inline svg' ? 'Save as .svg' : 'Save file'}</span>
             </button>
           ) : null}
           <CopyButton text={asset.url || asset.name} />
