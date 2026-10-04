@@ -1,11 +1,51 @@
 /**
+ * The light theme's tokens, written once for the two places that use them:
+ * the system's light preference, and light chosen in settings.
+ */
+const LIGHT_PANEL = `
+      --bg: #ffffff;
+      --bg-raised: #f4f6f7;
+      --bg-sunk: #eaedef;
+      --ink: #14181c;
+      --ink-soft: #3d474e;
+      /* Tuned against --bg-sunk, the darkest light surface: 5.06:1 there. */
+      --ink-mute: #5c656b;
+      --grip-shade: rgba(20, 24, 28, 0.45);
+      --grip-light: #ffffff;
+      --rule: #d5dbde;
+      /* 3.5:1 on sunk, clearing the 3:1 that WCAG 1.4.11 asks of a boundary. */
+      --rule-strong: #787d80;
+      /*
+       * White reads on the light accent (5.37:1) but only 3.06:1 on the dark
+       * one, which is why the most prominent control in the panel — the
+       * Inspect button — was the least legible thing in it after dark. The
+       * dark theme puts near-black on the orange instead, at 5.83:1.
+       */
+      --on-accent: #ffffff;
+      --accent: #b8451f;
+      --accent-wash: rgba(184, 69, 31, 0.10);
+      /* Both clear 4.5:1 on sunk, where the copied state and notes sit. */
+      --good: #376f4e;
+      --warn: #86591a;
+      --risk: #a8352b;
+      --bd-margin: #fbe3cc;
+      --bd-border: #fcf1c6;
+      --bd-padding: #dbebd4;
+      --bd-content: #cfe1ec;
+      --bd-ink: #14181c;
+      --bd-zero: #50555b;
+      box-shadow: 0 16px 48px -18px rgba(20, 24, 28, 0.4), 0 1px 3px rgba(20, 24, 28, 0.16);
+`;
+
+/**
  * Styles for the panel's shadow tree.
  *
  * The panel floats over pages we do not control, so it commits to its own
  * visual world rather than trying to blend in: a compact instrument, dark by
  * default because that is the convention for developer tools and because a
  * light panel glares over most sites. It follows the viewer's colour-scheme
- * preference, since designers frequently work in light.
+ * preference, since designers frequently work in light, unless settings
+ * choose one or the other.
  *
  * Everything is scoped by the shadow boundary, so class names can be short and
  * no selector needs defensive specificity.
@@ -107,42 +147,16 @@ export const PANEL_STYLES = `
     scrollbar-color: var(--scroll-thumb) transparent;
   }
 
+  /*
+   * Light: the system's when the panel follows it, or chosen in settings.
+   * A chosen dark keeps the dark tokens above whatever the system says.
+   */
   @media (prefers-color-scheme: light) {
-    .panel {
-      --bg: #ffffff;
-      --bg-raised: #f4f6f7;
-      --bg-sunk: #eaedef;
-      --ink: #14181c;
-      --ink-soft: #3d474e;
-      /* Tuned against --bg-sunk, the darkest light surface: 5.06:1 there. */
-      --ink-mute: #5c656b;
-      --grip-shade: rgba(20, 24, 28, 0.45);
-      --grip-light: #ffffff;
-      --rule: #d5dbde;
-      /* 3.5:1 on sunk, clearing the 3:1 that WCAG 1.4.11 asks of a boundary. */
-      --rule-strong: #787d80;
-      /*
-       * White reads on the light accent (5.37:1) but only 3.06:1 on the dark
-       * one, which is why the most prominent control in the panel — the
-       * Inspect button — was the least legible thing in it after dark. The
-       * dark theme puts near-black on the orange instead, at 5.83:1.
-       */
-      --on-accent: #ffffff;
-      --accent: #b8451f;
-      --accent-wash: rgba(184, 69, 31, 0.10);
-      /* Both clear 4.5:1 on sunk, where the copied state and notes sit. */
-      --good: #376f4e;
-      --warn: #86591a;
-      --risk: #a8352b;
-      --bd-margin: #fbe3cc;
-      --bd-border: #fcf1c6;
-      --bd-padding: #dbebd4;
-      --bd-content: #cfe1ec;
-      --bd-ink: #14181c;
-      --bd-zero: #50555b;
-      box-shadow: 0 16px 48px -18px rgba(20, 24, 28, 0.4), 0 1px 3px rgba(20, 24, 28, 0.16);
-    }
+    .panel:not([data-theme='dark']) {
+${LIGHT_PANEL}    }
   }
+  .panel[data-theme='light'] {
+${LIGHT_PANEL}  }
 
   .panel[data-side='left'] { right: auto; left: 12px; }
   /*
@@ -219,11 +233,16 @@ export const PANEL_STYLES = `
   .panel-tab:hover { filter: brightness(1.08); }
 
   @media (prefers-color-scheme: light) {
-    .panel-tab {
+    .panel-tab:not([data-theme='dark']) {
       background: #b8451f;
       border-color: #b8451f;
       color: #ffffff;
     }
+  }
+  .panel-tab[data-theme='light'] {
+    background: #b8451f;
+    border-color: #b8451f;
+    color: #ffffff;
   }
 
   /* ---------- toolbar ---------- */

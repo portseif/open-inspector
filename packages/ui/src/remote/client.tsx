@@ -146,6 +146,7 @@ export function mountRemotePanel(
           pinned={state.pinned}
           picking={state.picking}
           placement={DEFAULT_SETTINGS.panel}
+          theme={state.theme}
           view={window}
           onPlace={() => {}}
           onTogglePicking={() => call('panel', 'togglePicking')}

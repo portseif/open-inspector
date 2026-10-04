@@ -1,5 +1,6 @@
 import type { PageData, PanelData } from '../panel/view-model.js';
 import type { ContrastAudit } from '../panel/page.js';
+import type { ThemeSetting } from '../settings.js';
 
 /**
  * The panel, drawn somewhere other than the page it inspects.
@@ -57,6 +58,7 @@ export interface StateMessage {
   editing: EditingSnapshot | null;
   /** Whether settings changes are kept beyond the session. */
   settingsSaved: boolean;
+  theme: ThemeSetting;
 }
 
 /** The panel's callbacks that can be called from the other side, by name. */

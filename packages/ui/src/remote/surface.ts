@@ -1,7 +1,7 @@
 import type { PanelHandle, PanelOptions } from '../panel/mount.jsx';
 import type { PageData, PanelData } from '../panel/view-model.js';
 import type { BoxFocus } from '../overlay.js';
-import type { InspectorSettings } from '../settings.js';
+import { DEFAULT_SETTINGS, type InspectorSettings } from '../settings.js';
 import {
   isActionMessage,
   type ActionMessage,
@@ -50,6 +50,7 @@ export function createRemoteSurface(port: RemotePort, options: PanelOptions): Pa
   let pinned = false;
   let picking = true;
   let confirmClose: number | null = null;
+  let theme = options.theme ?? DEFAULT_SETTINGS.theme;
   let active = true;
 
   /** The page data last sent, by identity: it is replaced, never mutated, when it changes. */
@@ -101,6 +102,7 @@ export function createRemoteSurface(port: RemotePort, options: PanelOptions): Pa
       confirmClose,
       editing: active ? snapshot() : null,
       settingsSaved: options.settingsSaved ?? false,
+      theme,
     };
     if (data && active) {
       const { page: _page, ...rest } = data;
@@ -275,6 +277,11 @@ export function createRemoteSurface(port: RemotePort, options: PanelOptions): Pa
     // Nothing of it is in the page, so there is nothing to raise, place or own.
     raise() {},
     setPlacement() {},
+    setTheme(next) {
+      if (theme === next) return;
+      theme = next;
+      now();
+    },
     owns() {
       return false;
     },

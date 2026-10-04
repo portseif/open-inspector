@@ -3,7 +3,12 @@ import { lockHost, raiseToTopLayer } from '../host.js';
 import { Panel } from './Panel.jsx';
 import { EditingContext, type EditingApi } from './editing.jsx';
 import type { StructureApi } from './structure-tree.jsx';
-import { DEFAULT_SETTINGS, type InspectorSettings, type PanelPlacement } from '../settings.js';
+import {
+  DEFAULT_SETTINGS,
+  type InspectorSettings,
+  type PanelPlacement,
+  type ThemeSetting,
+} from '../settings.js';
 import { PANEL_STYLES } from './panel-styles.js';
 import { BOX_DIAGRAM_STYLES } from './box-diagram.jsx';
 import type { PanelData } from './view-model.js';
@@ -27,6 +32,8 @@ export interface PanelHandle {
    * saved position read late must not yank the panel out from under a drag.
    */
   setPlacement(placement: PanelPlacement): void;
+  /** Follow the system's light or dark, or keep to one whatever it says. */
+  setTheme(theme: ThemeSetting): void;
   /** True if the element belongs to the panel — used to avoid inspecting ourselves. */
   owns(element: Element): boolean;
   destroy(): void;
@@ -48,6 +55,8 @@ export interface PanelOptions {
   placement?: PanelPlacement;
   /** The panel was moved, docked or resized and has settled there. */
   onPlacementChange?: (placement: PanelPlacement) => void;
+  /** Light, dark, or whichever the system uses. Defaults to the system's. */
+  theme?: ThemeSetting;
   /** A breadcrumb entry was clicked; depth 0 is the current element. */
   onSelectAncestor?: (depth: number) => void;
   /** A tree step arrow was pressed. */
@@ -131,6 +140,7 @@ export function createPanel(options: PanelOptions): PanelHandle {
   let picking = true;
   let placement = options.placement ?? DEFAULT_SETTINGS.panel;
   let movedHere = false;
+  let theme = options.theme ?? DEFAULT_SETTINGS.theme;
   const view = doc.defaultView ?? window;
   let confirmClose: number | null = null;
   let attached = false;
@@ -149,6 +159,7 @@ export function createPanel(options: PanelOptions): PanelHandle {
         pinned={pinned}
         picking={picking}
         placement={placement}
+        theme={theme}
         view={view}
         onTogglePicking={() => options.onTogglePicking?.()}
         onSelectAncestor={(depth) => options.onSelectAncestor?.(depth)}
@@ -201,6 +212,11 @@ export function createPanel(options: PanelOptions): PanelHandle {
     setPlacement(next) {
       if (movedHere) return;
       placement = next;
+      paint();
+    },
+    setTheme(next) {
+      if (theme === next) return;
+      theme = next;
       paint();
     },
     owns(element) {

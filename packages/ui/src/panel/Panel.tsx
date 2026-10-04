@@ -9,7 +9,7 @@ import { StructureTree, type StructureApi } from './structure-tree.jsx';
 import { SettingsSection } from './settings-view.jsx';
 import { SvgPasteSection } from './svg-tool.jsx';
 import { ScriptSection } from './script-section.jsx';
-import type { InspectorSettings, PanelPlacement } from '../settings.js';
+import type { InspectorSettings, PanelPlacement, ThemeSetting } from '../settings.js';
 import {
   DEFAULT_WIDTH,
   MARGIN,
@@ -56,6 +56,8 @@ export interface PanelProps {
   onClose: () => void;
   /** Docked to a side, or floating where it was dropped. */
   placement: PanelPlacement;
+  /** Light, dark, or the system's; absent, the system's. */
+  theme?: ThemeSetting | undefined;
   /** The window the panel is in, for its size. */
   view: Window;
   /**
@@ -905,6 +907,7 @@ export function Panel({
   onTogglePicking,
   onClose,
   placement,
+  theme = 'system',
   view,
   onPlace,
   onSelectAncestor,
@@ -957,6 +960,8 @@ export function Panel({
     ref: frame,
     class: 'panel',
     'data-side': embedded ? 'embedded' : (placement.dock ?? 'float'),
+    // Absent for the system's: the stylesheet follows prefers-color-scheme then.
+    'data-theme': theme === 'system' ? undefined : theme,
     'data-dragging': dragging,
     style: embedded ? {} : style,
   };
@@ -1037,6 +1042,7 @@ export function Panel({
         type="button"
         class="panel-tab"
         data-side={side}
+        data-theme={theme === 'system' ? undefined : theme}
         title="Show the inspector panel"
         onClick={() => setCollapsed(false)}
       >

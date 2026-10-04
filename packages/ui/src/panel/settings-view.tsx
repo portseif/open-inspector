@@ -1,5 +1,5 @@
 import { color } from '@open-inspector/core';
-import type { InspectorSettings } from '../settings.js';
+import { THEME_SETTINGS, type InspectorSettings, type ThemeSetting } from '../settings.js';
 import { Empty, Group, Rows } from './primitives.jsx';
 
 const FORMAT_LABELS: Record<color.ColorFormat, string> = {
@@ -8,6 +8,12 @@ const FORMAT_LABELS: Record<color.ColorFormat, string> = {
   hexa: 'HEXA',
   rgb: 'RGB',
   hsl: 'HSL',
+};
+
+const THEME_LABELS: Record<ThemeSetting, string> = {
+  system: 'System',
+  dark: 'Dark',
+  light: 'Light',
 };
 
 /** Shown in each notation as it is picked: the panel's own accent. */
@@ -36,6 +42,22 @@ export function SettingsSection({
 
   return (
     <>
+      <Group title="Theme">
+        <div class="export-actions" role="group" aria-label="Theme">
+          {THEME_SETTINGS.map((theme) => (
+            <button
+              key={theme}
+              type="button"
+              aria-pressed={settings.theme === theme}
+              onClick={() => onChange({ theme })}
+            >
+              {THEME_LABELS[theme]}
+            </button>
+          ))}
+        </div>
+        <Empty>System follows your operating system's light or dark setting.</Empty>
+      </Group>
+
       <Group title="Color format">
         <div class="export-actions" role="group" aria-label="Color format">
           {color.COLOR_FORMATS.map((format) => (

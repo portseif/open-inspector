@@ -12,6 +12,10 @@ export interface PanelPlacement {
   height: number | null;
 }
 
+/** The panel's theme: the system's, or one chosen whatever the system says. */
+export type ThemeSetting = 'system' | 'dark' | 'light';
+export const THEME_SETTINGS: readonly ThemeSetting[] = ['system', 'dark', 'light'];
+
 /**
  * The inspector's preferences.
  *
@@ -22,12 +26,14 @@ export interface PanelPlacement {
 export interface InspectorSettings {
   /** How colours are written in the panel, on the clipboard and in exports. */
   colorFormat: color.ColorFormat;
+  theme: ThemeSetting;
   /** Where the panel was left, so it opens there next time. */
   panel: PanelPlacement;
 }
 
 export const DEFAULT_SETTINGS: InspectorSettings = {
   colorFormat: 'oklch',
+  theme: 'system',
   panel: { dock: 'right', x: 12, y: 12, width: 348, height: null },
 };
 
@@ -41,11 +47,15 @@ export const DEFAULT_SETTINGS: InspectorSettings = {
 export function normalizeSettings(raw: unknown): InspectorSettings {
   const stored = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
   const format = stored['colorFormat'];
+  const theme = stored['theme'];
 
   return {
     colorFormat: color.COLOR_FORMATS.includes(format as color.ColorFormat)
       ? (format as color.ColorFormat)
       : DEFAULT_SETTINGS.colorFormat,
+    theme: THEME_SETTINGS.includes(theme as ThemeSetting)
+      ? (theme as ThemeSetting)
+      : DEFAULT_SETTINGS.theme,
     panel: normalizePlacement(stored['panel']),
   };
 }

@@ -648,6 +648,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
   function applySettings(next: Partial<InspectorSettings>): void {
     settings = normalizeSettings({ ...settings, ...next });
     if (next.panel) panel?.setPlacement(settings.panel);
+    panel?.setTheme(settings.theme);
 
     // The exports are written in the colour notation, so they are rebuilt.
     // `scan` reuses the document walk it already did; only the text changes.
@@ -733,6 +734,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
       onTogglePicking: () => setPicking(!picking),
       settingsSaved: options.onSettingsChange !== undefined,
       placement: settings.panel,
+      theme: settings.theme,
       // Saved as it is, without a repaint: the panel has already moved.
       onPlacementChange: (placement) => {
         settings = { ...settings, panel: placement };

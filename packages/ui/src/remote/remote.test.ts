@@ -119,6 +119,11 @@ describe('createRemoteSurface', () => {
     surface.update({ ...data, selectorLabel: 'button#go' });
     vi.runAllTimers();
     expect(states(sent).at(-1)).not.toHaveProperty('page');
+
+    // A theme chosen in settings reaches the other side too.
+    expect(states(sent).at(-1)?.theme).toBe('system');
+    surface.setTheme('light');
+    expect(states(sent).at(-1)?.theme).toBe('light');
   });
 
   it('turns requests into the same callbacks, and drops malformed ones', () => {

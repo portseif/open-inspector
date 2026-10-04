@@ -17,6 +17,19 @@ describe('normalizeSettings', () => {
   });
 });
 
+describe('normalizeSettings: the theme', () => {
+  it('follows the system until one is chosen', () => {
+    expect(normalizeSettings(undefined).theme).toBe('system');
+    expect(normalizeSettings({ theme: 'light' }).theme).toBe('light');
+    expect(normalizeSettings({ theme: 'dark' }).theme).toBe('dark');
+  });
+
+  it('falls back to the system on anything else', () => {
+    expect(normalizeSettings({ theme: 'sepia' }).theme).toBe('system');
+    expect(normalizeSettings({ theme: null }).theme).toBe('system');
+  });
+});
+
 describe('normalizeSettings: the panel placement', () => {
   it('opens docked right by default', () => {
     expect(normalizeSettings(undefined).panel).toEqual({
