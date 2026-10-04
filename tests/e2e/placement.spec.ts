@@ -5,7 +5,7 @@ import { openInspector, panel, pin } from './support/panel.js';
 /**
  * Moving the panel, and finding it where it was left next time.
  *
- * Real mouse input throughout: a drag is a press on the header, travel, and
+ * Real mouse input throughout: a drag is a press on the rail, travel, and
  * a release, and only the release is saved.
  */
 
@@ -53,18 +53,25 @@ async function dragHandle(page: Page, selector: string, dx: number, dy: number):
   await page.mouse.up();
 }
 
-/** Drag the panel by its header so that its title lands at (x, y). */
-async function dragHeaderTo(page: Page, x: number, y: number): Promise<void> {
-  const box = await panel(page).locator('.head-top .selector').boundingBox();
-  if (!box) throw new Error('no panel header');
-  await page.mouse.move(box.x + 10, box.y + box.height / 2);
+/** A point on the rail's empty stretch, between the tabs and the buttons at its foot. */
+async function railGrip(page: Page): Promise<{ x: number; y: number }> {
+  const tabs = await panel(page).locator('.rail .tabs').boundingBox();
+  const foot = await panel(page).locator('.rail-foot').boundingBox();
+  if (!tabs || !foot) throw new Error('no rail');
+  return { x: tabs.x + tabs.width / 2, y: (tabs.y + tabs.height + foot.y) / 2 };
+}
+
+/** Drag the panel by its rail, straight across to `x`, so the pointer stays on that stretch. */
+async function dragRailTo(page: Page, x: number): Promise<void> {
+  const grip = await railGrip(page);
+  await page.mouse.move(grip.x, grip.y);
   await page.mouse.down();
-  await page.mouse.move(x, y, { steps: 8 });
+  await page.mouse.move(x, grip.y, { steps: 8 });
   await page.mouse.up();
 }
 
 test.describe('panel placement', () => {
-  test('dragging the header floats the panel, and the drop is saved', async ({
+  test('dragging the rail floats the panel, and the drop is saved', async ({
     context,
     serviceWorker,
   }) => {
@@ -72,7 +79,7 @@ test.describe('panel placement', () => {
     await openInspector(page, serviceWorker, FIXTURE_URL);
     await pin(page, '#plain-button');
 
-    await dragHeaderTo(page, 400, 200);
+    await dragRailTo(page, 400);
 
     await expect(frame(page)).toHaveAttribute('data-side', 'float');
     await expect(panel(page).locator('.selector')).toHaveText('button#plain-button');
@@ -82,6 +89,21 @@ test.describe('panel placement', () => {
     const saved = await savedPlacement(serviceWorker);
     expect(Math.abs((box?.x ?? 0) - (saved?.x ?? -1))).toBeLessThanOrEqual(1);
     expect(Math.abs((box?.y ?? 0) - (saved?.y ?? -1))).toBeLessThanOrEqual(1);
+  });
+
+  test('the header does not drag the panel', async ({ context, serviceWorker }) => {
+    const page = await context.newPage();
+    await openInspector(page, serviceWorker, FIXTURE_URL);
+    await pin(page, '#plain-button');
+
+    const box = await panel(page).locator('.head-top .selector').boundingBox();
+    if (!box) throw new Error('no panel header');
+    await page.mouse.move(box.x + 10, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(400, 200, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(frame(page)).toHaveAttribute('data-side', 'right');
   });
 
   test('reopening puts the panel back where it was left', async ({ context, serviceWorker }) => {
@@ -105,13 +127,13 @@ test.describe('panel placement', () => {
     await openInspector(page, serviceWorker, FIXTURE_URL);
     await pin(page, '#plain-button');
 
-    await dragHeaderTo(page, 2, 300);
+    await dragRailTo(page, 2);
 
     await expect(frame(page)).toHaveAttribute('data-side', 'left');
     await expect.poll(async () => (await savedPlacement(serviceWorker))?.dock).toBe('left');
   });
 
-  test('double-clicking the header docks a floating panel to the nearer side', async ({
+  test('double-clicking the rail docks a floating panel to the nearer side', async ({
     context,
     serviceWorker,
   }) => {
@@ -121,7 +143,8 @@ test.describe('panel placement', () => {
     await openInspector(page, serviceWorker, FIXTURE_URL);
     await pin(page, '#plain-button');
 
-    await panel(page).locator('.head-top .selector').dblclick();
+    const grip = await railGrip(page);
+    await page.mouse.dblclick(grip.x, grip.y);
 
     await expect(frame(page)).toHaveAttribute('data-side', 'right');
     await expect.poll(async () => (await savedPlacement(serviceWorker))?.dock).toBe('right');

@@ -442,10 +442,6 @@ ${LIGHT_PANEL}  }
 
   .head-top { display: flex; align-items: center; gap: 8px; min-height: 26px; }
 
-  /* The header is the handle the panel is dragged by; its controls stay clickable. */
-  .head-top { cursor: grab; touch-action: none; }
-  .panel[data-dragging='true'] .head-top { cursor: grabbing; }
-
   /*
    * Ink, not accent. Accent marks what you have changed or switched on; the
    * element's name is neither, and painting it orange made it compete with
@@ -1276,10 +1272,14 @@ ${LIGHT_PANEL}  }
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 8px 0;
+    /* As far from the top and bottom as from the sides: (39 - 30) / 2. */
+    padding: 4.5px 0;
     background: var(--bg-raised);
     border-right: 1px solid var(--rule);
   }
+  /* Its empty space is the panel's handle; the buttons on it stay buttons. */
+  .panel:not([data-side='embedded']) .rail { cursor: grab; touch-action: none; }
+  .panel[data-dragging='true'] .rail { cursor: grabbing; }
 
   .tabs { display: flex; flex-direction: column; gap: 3px; }
 

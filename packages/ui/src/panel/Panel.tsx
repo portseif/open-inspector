@@ -707,14 +707,14 @@ function ResizeHandle({
 const NOT_A_DRAG = 'button, input, select, textarea, a, [role="separator"]';
 
 /**
- * Dragging the panel by its header.
+ * Dragging the panel by its rail.
  *
- * A few pixels of travel before it counts, so a click on the header — to
- * focus it, or to start a double-click — never nudges the panel. While it
+ * A few pixels of travel before it counts, so a click on the rail — to
+ * start a double-click, say — never nudges the panel. While it
  * moves, every position is reported uncommitted; the drop is the one that is
  * saved, and dropping against a side edge docks the panel there.
  */
-function useHeaderDrag(
+function usePanelDrag(
   placement: PanelPlacement,
   view: Window,
   onPlace: PanelProps['onPlace'],
@@ -770,6 +770,8 @@ function useHeaderDrag(
   };
 }
 
+type DragHandlers = ReturnType<typeof usePanelDrag>['handlers'];
+
 /** How long the pointer rests on a rail button before its label shows: the hover delay in panel-styles. */
 const LABEL_DELAY_MS = 150;
 /** How long after leaving a labelled button the next label still shows at once. */
@@ -791,12 +793,15 @@ function Rail({
   tab,
   edits,
   onSelect,
+  drag,
   children,
 }: {
   tab: PanelTab;
   /** Pending edits, counted on the Styles tab where the Changes list lives. */
   edits: number;
   onSelect: (tab: PanelTab) => void;
+  /** Its empty space is what the panel is dragged by; absent where it cannot move. */
+  drag?: Partial<DragHandlers> | undefined;
   /** Controls pinned to the foot of the rail. */
   children?: ComponentChildren;
 }) {
@@ -863,7 +868,7 @@ function Rail({
   }
 
   return (
-    <aside class="rail" ref={rail} onPointerOver={enter} onPointerOut={leave}>
+    <aside class="rail" ref={rail} onPointerOver={enter} onPointerOut={leave} {...drag}>
       <nav
         class="tabs"
         role="tablist"
@@ -930,7 +935,7 @@ export function Panel({
   const [showKeys, setShowKeys] = useState(false);
   const body = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
-  const drag = useHeaderDrag(placement, view, onPlace, frame);
+  const drag = usePanelDrag(placement, view, onPlace, frame);
   const dragging = embedded ? false : drag.dragging;
   const dragHandlers = embedded ? {} : drag.handlers;
 
@@ -1004,7 +1009,7 @@ export function Panel({
         {resizeHandle}
         <div class="main">
           <header class="head">
-            <div class="head-top" {...dragHandlers}>
+            <div class="head-top">
               <span class="selector">Open Inspector</span>
               <div class="head-actions">
                 <InspectButton picking={picking} onToggle={onTogglePicking} />
@@ -1058,6 +1063,7 @@ export function Panel({
       <Rail
         tab={tab}
         edits={edits}
+        drag={dragHandlers}
         onSelect={(next) => {
           // Re-selecting Styles is how you get back to the Changes list.
           if (next === tab) body.current?.scrollTo?.({ top: 0 });
@@ -1100,7 +1106,7 @@ export function Panel({
 
       <div class="main">
         <header class="head">
-          <div class="head-top" {...dragHandlers}>
+          <div class="head-top">
             <span class="selector" title={data.selectorLabel}>
               {data.selectorLabel}
             </span>
