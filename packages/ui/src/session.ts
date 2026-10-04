@@ -1126,6 +1126,15 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
 
     if (key !== 'Escape') return;
 
+    /*
+     * A field in the panel (the filter, a value being edited) answers Escape
+     * itself, by clearing or cancelling. This listener captures, so it hears
+     * the key before the field can stop it, and has to stand aside. The
+     * panel's shadow root is open, so the path reaches the field itself.
+     */
+    const target = event.composedPath()[0] as Node | undefined;
+    if (focusInPanel && target?.nodeType === 1 && isEditable(target as Element)) return;
+
     /**
      * Escape unwinds one step at a time, never more.
      *

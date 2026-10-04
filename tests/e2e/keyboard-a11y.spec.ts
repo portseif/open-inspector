@@ -259,4 +259,22 @@ test.describe('keyboard only', () => {
     await page.keyboard.press('Escape');
     await expect(panel(page)).toHaveCount(0);
   });
+
+  test('Escape in the filter box clears it and nothing else', async ({ context, serviceWorker }) => {
+    const page = await context.newPage();
+    await openInspector(page, serviceWorker, KEYBOARD_URL);
+    await pin(page, '#c2');
+    const label = panel(page).locator('.selector');
+    await expect(label).toContainText('c2');
+
+    const filter = panel(page).locator('.search');
+    await filter.fill('padding');
+    await filter.press('Escape');
+    await expect(filter).toHaveValue('');
+
+    // Still pinned: moving the pointer away does not change what is shown.
+    const c3 = await page.locator('#c3').boundingBox();
+    await page.mouse.move(c3!.x + 10, c3!.y + 10);
+    await expect(label).toContainText('c2');
+  });
 });

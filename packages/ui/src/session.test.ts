@@ -113,6 +113,23 @@ describe('createInspectorSession', () => {
     expect(session.active).toBe(true);
   });
 
+  it('leaves Escape to a field in the panel, which clears or cancels itself', () => {
+    session.activate();
+    const shadow = document.querySelector('open-inspector-panel')?.shadowRoot;
+    if (!shadow) throw new Error('no panel');
+    const field = document.createElement('input');
+    shadow.appendChild(field);
+    field.focus();
+
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
+    expect(session.picking).toBe(true);
+
+    // Anywhere else in the panel it still unwinds.
+    field.blur();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(session.picking).toBe(false);
+  });
+
   it('notifies the caller only once it actually closes', () => {
     const onDeactivate = vi.fn();
     const watched = createInspectorSession({ onDeactivate });
