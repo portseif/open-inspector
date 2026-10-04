@@ -3,6 +3,7 @@ import type { BoxModel, EdgeSizes, ProbeBoundary, Rect } from '@open-inspector/c
 import { isEmptyRect, round } from '@open-inspector/core';
 import { placeChip } from './chip-placement.js';
 import { OVERLAY_STYLES } from './overlay-styles.js';
+import { JS_LOGO } from './panel/icons.jsx';
 
 /** Custom tag name so no page stylesheet targeting `div` can reach the host. */
 const HOST_TAG = 'open-inspector-overlay';
@@ -36,6 +37,8 @@ export interface OverlayTarget {
   boundary?: ProbeBoundary | null;
   /** Draw only this part, in its own colour, and name it on the chip. */
   focus?: BoxFocus | null;
+  /** It has event handlers: the chip leads with the JS mark, as its tree row does. */
+  script?: boolean | undefined;
 }
 
 export interface Overlay {
@@ -247,6 +250,16 @@ export function createOverlay(doc: Document = document, options: OverlayOptions 
   chip.className = 'chip';
   chip.dataset['visible'] = 'false';
 
+  const SVG = 'http://www.w3.org/2000/svg';
+  const scriptEl = doc.createElementNS(SVG, 'svg');
+  scriptEl.setAttribute('class', 'js');
+  scriptEl.setAttribute('viewBox', JS_LOGO.viewBox);
+  scriptEl.setAttribute('fill', 'currentColor');
+  scriptEl.setAttribute('aria-hidden', 'true');
+  const scriptPath = doc.createElementNS(SVG, 'path');
+  scriptPath.setAttribute('d', JS_LOGO.d);
+  scriptEl.appendChild(scriptPath);
+
   const selectorEl = doc.createElement('span');
   selectorEl.className = 'selector';
   const dimensionsEl = doc.createElement('span');
@@ -254,7 +267,7 @@ export function createOverlay(doc: Document = document, options: OverlayOptions 
   const boundaryEl = doc.createElement('span');
   boundaryEl.className = 'boundary';
 
-  chip.append(selectorEl, dimensionsEl, boundaryEl);
+  chip.append(scriptEl, selectorEl, dimensionsEl, boundaryEl);
   shadow.appendChild(chip);
 
   let attached = false;
@@ -300,6 +313,7 @@ export function createOverlay(doc: Document = document, options: OverlayOptions 
         if (focus && !focused) layer.dataset['visible'] = 'false';
       }
 
+      scriptEl.style.display = target.script ? 'block' : 'none';
       selectorEl.textContent = target.selectorLabel;
       dimensionsEl.textContent = focus ? describeFocus(box, focus) : target.dimensions;
 

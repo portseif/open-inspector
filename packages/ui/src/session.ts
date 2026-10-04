@@ -795,6 +795,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
       dimensions: formatDimensions(descriptor.width, descriptor.height),
       boundary,
       focus,
+      script: hasScript(element),
     });
   }
 

@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { BoxModel, EdgeSizes } from '@open-inspector/core';
-import { describeFocus, edgeProperty } from './overlay.js';
+import { createOverlay, describeFocus, edgeProperty } from './overlay.js';
 
 const rect = { x: 0, y: 0, width: 0, height: 0 };
 const zero: EdgeSizes = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -51,5 +51,23 @@ describe('describeFocus', () => {
 
   it('gives the content box its size', () => {
     expect(describeFocus(box({}), { region: 'content', side: null })).toBe('content: 187.33 × 76.78');
+  });
+});
+
+describe('the chip', () => {
+  it('leads with the JS mark only for an element with handlers', () => {
+    // The overlay's root is closed; keep hold of it as it is made.
+    const attach = vi.spyOn(HTMLElement.prototype, 'attachShadow');
+    const overlay = createOverlay();
+    const shadow = attach.mock.results[0]?.value as ShadowRoot;
+    attach.mockRestore();
+    const mark = () => shadow.querySelector<SVGElement>('.chip .js')?.style.display;
+
+    overlay.show({ box: box({}), selectorLabel: 'button#go', dimensions: '80 × 24', script: true });
+    expect(mark()).toBe('block');
+
+    overlay.show({ box: box({}), selectorLabel: 'p', dimensions: '80 × 24' });
+    expect(mark()).toBe('none');
+    overlay.destroy();
   });
 });

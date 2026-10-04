@@ -89,6 +89,16 @@ export const OVERLAY_STYLES = `
     display: flex;
   }
 
+  /* Grey like the tree's badge; its letters are cut out, so the chip draws them. */
+  .chip .js {
+    flex: none;
+    align-self: center;
+    width: 11px;
+    height: 11px;
+    margin-right: -3px;
+    color: #b3bcc2;
+  }
+
   .chip .selector {
     overflow: hidden;
     text-overflow: ellipsis;
