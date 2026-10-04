@@ -2,6 +2,7 @@ import {
   DEFAULT_STRUCTURE_CHILD_LIMIT,
   MAX_STRUCTURE_VISITS,
   flattenStructure,
+  matchesStructureQuery,
   matchingStructure,
   structureChildren,
   structurePath,
@@ -33,6 +34,11 @@ export interface StructureModel {
   setAllExpanded(expanded: boolean): void;
   /** List only the elements with JavaScript wired to them, flat, in document order. */
   setScriptOnly(on: boolean): void;
+  /**
+   * List only the elements a search matches, flat, in document order, and
+   * with handlers too when the JS filter is on. Empty lists the tree again.
+   */
+  setQuery(query: string): void;
   /** Forget the JS-only listing, so the next build looks again: the handler read landed. */
   refreshScripts(): void;
   /**
@@ -70,12 +76,13 @@ export function createStructureModel(
   /** What the expand toggle last did, so it offers the other next. */
   let allExpanded = false;
   let scriptOnly = false;
+  let query = '';
   /**
-   * The JS-only listing, kept between builds: it walks the whole document,
-   * and the panel builds on every repaint. Dropped when the filter is turned
-   * on again or the handler read lands.
+   * The filtered listing (JS only, a search, or both), kept between builds:
+   * it walks the whole document, and the panel builds on every repaint.
+   * Dropped when either filter changes or the handler read lands.
    */
-  let scriptListing: StructureListing | null = null;
+  let filteredListing: StructureListing | null = null;
   const limits = new WeakMap<StructureNode, number>();
 
   /**
@@ -146,11 +153,18 @@ export function createStructureModel(
 
     setScriptOnly(next) {
       scriptOnly = next;
-      scriptListing = null;
+      filteredListing = null;
+    },
+
+    setQuery(next) {
+      const trimmed = next.trim();
+      if (trimmed === query) return;
+      query = trimmed;
+      filteredListing = null;
     },
 
     refreshScripts() {
-      scriptListing = null;
+      filteredListing = null;
     },
 
     showMore(id) {
@@ -184,18 +198,21 @@ export function createStructureModel(
       listed.clear();
 
       const hasScript = options.hasScript;
-      const filtering = scriptOnly && hasScript !== undefined;
-      const listing = filtering
-        ? (scriptListing ??= matchingStructure(doc.documentElement, hasScript, {
-            ...(options.ignore ? { ignore: options.ignore } : {}),
-            ...(options.maxRows !== undefined ? { maxRows: options.maxRows } : {}),
-          }))
-        : flattenStructure(doc.documentElement, {
-            isExpanded: (node) => expanded.has(node),
-            childLimit: limitFor,
-            ...(options.ignore ? { ignore: options.ignore } : {}),
-            ...(options.maxRows !== undefined ? { maxRows: options.maxRows } : {}),
-          });
+      const scriptsOnly = scriptOnly && hasScript !== undefined;
+      const match = (element: Element): boolean =>
+        (!scriptsOnly || hasScript(element)) && matchesStructureQuery(element, query);
+      const listing =
+        scriptsOnly || query
+          ? (filteredListing ??= matchingStructure(doc.documentElement, match, {
+              ...(options.ignore ? { ignore: options.ignore } : {}),
+              ...(options.maxRows !== undefined ? { maxRows: options.maxRows } : {}),
+            }))
+          : flattenStructure(doc.documentElement, {
+              isExpanded: (node) => expanded.has(node),
+              childLimit: limitFor,
+              ...(options.ignore ? { ignore: options.ignore } : {}),
+              ...(options.maxRows !== undefined ? { maxRows: options.maxRows } : {}),
+            });
 
       const rows = listing.rows.map((row): StructureRowInfo => {
         if (row.kind === 'more') {
@@ -239,7 +256,8 @@ export function createStructureModel(
         revealed,
         truncated: listing.truncated,
         allExpanded,
-        scriptOnly: filtering,
+        scriptOnly: scriptsOnly,
+        query,
         canFilterScripts: hasScript !== undefined,
       };
     },

@@ -95,6 +95,7 @@ export const STRUCTURE_ACTIONS = [
   'select',
   'setAllExpanded',
   'setScriptOnly',
+  'setQuery',
 ] as const;
 
 export type ActionTarget = 'panel' | 'editing' | 'structure';

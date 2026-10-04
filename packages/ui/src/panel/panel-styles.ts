@@ -306,7 +306,8 @@ ${LIGHT_PANEL}  }
   }
   .search-box:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-  .search {
+  .search,
+  .tree-search {
     flex: 1;
     min-width: 0;
     height: 100%;
@@ -318,8 +319,10 @@ ${LIGHT_PANEL}  }
     font-family: var(--sans);
     font-size: 11.5px;
   }
-  .search::placeholder { color: var(--ink-mute); }
-  .search::-webkit-search-cancel-button { filter: grayscale(1) opacity(0.6); }
+  .search::placeholder,
+  .tree-search::placeholder { color: var(--ink-mute); }
+  .search::-webkit-search-cancel-button,
+  .tree-search::-webkit-search-cancel-button { filter: grayscale(1) opacity(0.6); }
 
   /*
    * Presets, not a free-form number box. The widths that matter are few and
@@ -1261,6 +1264,8 @@ ${LIGHT_PANEL}  }
   .structure-bar .js-toggle[aria-pressed='true'] { color: var(--accent); }
   .structure-count {
     margin-left: auto;
+    padding-left: 6px;
+    white-space: nowrap;
     font-size: 10.5px;
     color: var(--ink-mute);
     font-variant-numeric: tabular-nums;

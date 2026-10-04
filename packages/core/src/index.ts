@@ -46,6 +46,7 @@ export {
   fileName,
   flattenStructure,
   matchingStructure,
+  matchesStructureQuery,
   MAX_STRUCTURE_VISITS,
   structureChildren,
   structurePath,

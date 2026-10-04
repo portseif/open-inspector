@@ -113,4 +113,30 @@ describe('createStructureModel', () => {
 
     expect(outline(model.build(null)).join('\n')).not.toContain('open-inspector-panel');
   });
+
+  it('lists only what a search matches, flat, collapsed or not, and the tree again when cleared', () => {
+    const model = createStructureModel(document);
+
+    model.setQuery('  li#b ');
+    const found = model.build(null);
+    expect(outline(found)).toEqual(['li#b']);
+    expect(found.query).toBe('li#b');
+
+    model.setQuery('three');
+    expect(outline(model.build(null))).toEqual(['li#c']);
+
+    model.setQuery('');
+    expect(outline(model.build(null))).toEqual(['html', '  head', '  body', '    main#m']);
+  });
+
+  it('narrows a search to elements with handlers while the JS filter is on', () => {
+    const model = createStructureModel(document, { hasScript: (element) => element.id === 'a' });
+
+    // `ul#list` too: its id holds the letters.
+    model.setQuery('li');
+    expect(outline(model.build(null))).toEqual(['ul#list', 'li#a', 'li#b', 'li#c']);
+
+    model.setScriptOnly(true);
+    expect(outline(model.build(null))).toEqual(['li#a']);
+  });
 });

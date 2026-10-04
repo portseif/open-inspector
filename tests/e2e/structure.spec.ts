@@ -118,6 +118,35 @@ test.describe('structure drawer', () => {
     await expect(selectedRow(page)).toContainText('Second card');
   });
 
+  test('typing in the tree searches it, Enter picks a match, and Escape puts the tree back', async ({
+    context,
+    serviceWorker,
+  }) => {
+    const page = await context.newPage();
+    await openInspector(page, serviceWorker, FIXTURE_URL);
+    await pin(page, '.card >> nth=0');
+    await openDrawer(page);
+
+    await selectedRow(page).focus();
+    await page.keyboard.type('second');
+    const field = panel(page).locator('.tree-search');
+    await expect(field).toBeFocused();
+    await expect(field).toHaveValue('second');
+    await expect(drawer(page).locator('.node')).toHaveCount(1);
+    await expect(panel(page).locator('.structure-count')).toHaveText('1 match');
+
+    await page.keyboard.press('Enter');
+    await expect(selectedRow(page)).toContainText('Second card');
+    await expect(selectedRow(page)).toBeFocused();
+
+    // Escape clears the search before anything else: the tree comes back,
+    // still on the match, and the selection holds.
+    await page.keyboard.press('Escape');
+    await expect(field).toHaveCount(0);
+    await expect(treeRow(page, 'First card')).toBeVisible();
+    await expect(selectedRow(page)).toContainText('Second card');
+  });
+
   test('right opens a branch and left closes it', async ({ context, serviceWorker }) => {
     const page = await context.newPage();
     await openInspector(page, serviceWorker, FIXTURE_URL);

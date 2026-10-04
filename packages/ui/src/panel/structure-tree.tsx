@@ -20,6 +20,8 @@ export interface StructureApi {
   setAllExpanded(expanded: boolean): void;
   /** List only the elements with JavaScript wired to them. */
   setScriptOnly(on: boolean): void;
+  /** List only the elements a search matches; empty lists the tree again. */
+  setQuery(query: string): void;
 }
 
 /** Pixels per level. Narrow, because the drawer shares the panel's 348px. */
@@ -78,7 +80,24 @@ export function StructureTree({
    */
   const focusTarget = useRef<string | null>(null);
 
+  const search = useRef<HTMLInputElement>(null);
+  /**
+   * What the search field shows. Kept here rather than read back from the
+   * session, so a keystroke never waits on a repaint to appear in the field.
+   */
+  const [text, setText] = useState(info.query);
+  const [searching, setSearching] = useState(info.query !== '');
+  /** Move focus into the field, or back to the tree, once the next render lands. */
+  const focusNext = useRef<'search' | 'tree' | null>(null);
+  /**
+   * A step from the field into the results, held until the rows are the
+   * results for what the field says: typing outruns the session's repaint,
+   * and the rows a quick Enter would see are the ones before the last key.
+   */
+  const pendingStep = useRef<'focus' | 'select' | null>(null);
+
   const { rows } = info;
+  const filtering = info.scriptOnly || info.query !== '';
   const selectedKey = info.selectedId !== null ? String(info.selectedId) : null;
   const firstKey = rows[0] ? rowKey(rows[0]) : null;
   const activeKey =
@@ -104,6 +123,66 @@ export function StructureTree({
     row.focus({ preventScroll: true });
     keepVisible(container, row, false);
   });
+
+  useEffect(() => {
+    const next = focusNext.current;
+    if (next === null) return;
+    focusNext.current = null;
+    if (next === 'search') {
+      const field = search.current;
+      field?.focus();
+      // At the end, after the character that opened it.
+      field?.setSelectionRange(field.value.length, field.value.length);
+    } else {
+      list.current?.querySelector<HTMLElement>('[tabindex="0"]')?.focus({ preventScroll: true });
+    }
+  });
+
+  useEffect(() => {
+    const step = pendingStep.current;
+    if (step === null || info.query !== text.trim()) return;
+    pendingStep.current = null;
+    enterResults(step);
+  });
+
+  /** Into the results: focus the first, and with Enter choose it, as a find-as-you-type list does. */
+  function enterResults(step: 'focus' | 'select'): void {
+    const first = rows[0];
+    if (step === 'select' && first && first.kind !== 'more') api.select(first.id);
+    focusRow(0);
+  }
+
+  function updateSearch(next: string): void {
+    setText(next);
+    api.setQuery(next);
+  }
+
+  function openSearch(initial: string): void {
+    setSearching(true);
+    updateSearch(initial);
+    focusNext.current = 'search';
+  }
+
+  /** Empty the search, put the whole tree back, and return to it. */
+  function closeSearch(): void {
+    setSearching(false);
+    if (text) updateSearch('');
+    focusNext.current = 'tree';
+  }
+
+  function onSearchKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      closeSearch();
+    } else if (event.key === 'ArrowDown' || event.key === 'Enter') {
+      const step = event.key === 'Enter' ? 'select' : 'focus';
+      if (info.query === text.trim()) enterResults(step);
+      else pendingStep.current = step;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+  }
 
   function focusRow(index: number): void {
     const row = rows[index];
@@ -155,8 +234,19 @@ export function StructureTree({
         if (row?.kind === 'more') api.showMore(row.id);
         else if (row) api.select(row.id);
         break;
+      case 'Escape':
+        // A search is the first thing Escape unwinds; after that it is the session's.
+        if (!searching && !text) return;
+        closeSearch();
+        break;
       default:
-        // Escape and everything else belong to the session.
+        // A character typed into the tree starts a search with it, the way a
+        // file list does. Shortcuts with a modifier are left alone.
+        if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          openSearch(text + event.key);
+          break;
+        }
+        // Everything else belongs to the session.
         return;
     }
 
@@ -167,7 +257,7 @@ export function StructureTree({
   return (
     <>
       <div class="structure-bar">
-        {info.scriptOnly ? null : (
+        {filtering ? null : (
           <button
             type="button"
             class="icon-btn"
@@ -188,10 +278,37 @@ export function StructureTree({
             <span class="tab-label">Only elements with JS</span>
           </button>
         ) : null}
-        {info.scriptOnly ? (
+        {searching || text ? (
+          <label class="search-box">
+            <Icon name="search" size={12} />
+            <input
+              ref={search}
+              type="search"
+              class="tree-search"
+              placeholder="Find in tree"
+              aria-label="Find elements by tag, id, class or text"
+              aria-controls="oi-structure"
+              value={text}
+              spellcheck={false}
+              autocomplete="off"
+              onInput={(event) => updateSearch((event.target as HTMLInputElement).value)}
+              onKeyDown={onSearchKeyDown}
+              onBlur={() => {
+                if (!text) setSearching(false);
+              }}
+            />
+          </label>
+        ) : (
+          <button type="button" class="icon-btn" onClick={() => openSearch('')}>
+            <Icon name="search" size={14} />
+            <span class="tab-label">Find in tree</span>
+          </button>
+        )}
+        {filtering ? (
           <span class="structure-count">
             {rows.length}
-            {info.truncated ? '+' : ''} with handlers
+            {info.truncated ? '+' : ''}{' '}
+            {info.query ? (rows.length === 1 ? 'match' : 'matches') : 'with handlers'}
           </span>
         ) : null}
       </div>
@@ -201,6 +318,7 @@ export function StructureTree({
         class="structure"
         role="tree"
         aria-label="Document structure"
+        data-owns-escape={searching || text ? '' : undefined}
         onKeyDown={onKeyDown}
         onPointerLeave={() => api.preview(null)}
         onFocusOut={(event) => {
@@ -299,13 +417,17 @@ export function StructureTree({
           );
         })}
 
-        {info.scriptOnly && rows.length === 0 ? (
-          <p class="structure-note">No element on this page has a handler that could be read.</p>
+        {filtering && rows.length === 0 ? (
+          <p class="structure-note">
+            {info.query
+              ? `No element${info.scriptOnly ? ' with handlers' : ''} matches "${info.query}".`
+              : 'No element on this page has a handler that could be read.'}
+          </p>
         ) : null}
 
         {info.truncated ? (
           <p class="structure-note">
-            {info.scriptOnly
+            {filtering
               ? 'The search stops here to keep the page responsive.'
               : 'The listing stops here to keep the page responsive. Collapse a branch to see further.'}
           </p>

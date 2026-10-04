@@ -3,6 +3,7 @@ import {
   ancestorTrail,
   flattenStructure,
   matchingStructure,
+  matchesStructureQuery,
   readTreePosition,
   stepTree,
   structurePath,
@@ -353,5 +354,40 @@ describe('matchingStructure', () => {
   it('leaves out what the caller ignores', () => {
     const rows = matchingStructure(at('#m'), hit, { ignore: (element) => element.tagName === 'SECTION' }).rows;
     expect(rows.map((row) => (row.kind === 'more' ? '' : row.label))).toEqual(['li#a']);
+  });
+});
+
+describe('matchesStructureQuery', () => {
+  beforeEach(() =>
+    fixture(`
+      <section id="s">
+        <button id="save" class="primary wide">Save   draft</button>
+        <p class="note">Nothing <em>here</em></p>
+        <style>.note { color: red }</style>
+      </section>
+    `),
+  );
+
+  it('matches what the row shows: tag, id and classes, in any case', () => {
+    for (const query of ['button', '#save', '.primary', 'BUTTON#SAVE.primary', 'button.primary', 'wide']) {
+      expect(matchesStructureQuery(at('#save'), query), query).toBe(true);
+    }
+    expect(matchesStructureQuery(at('#save'), 'section')).toBe(false);
+  });
+
+  it('matches its own text, whitespace folded, but not text further down', () => {
+    expect(matchesStructureQuery(at('#save'), 'save draft')).toBe(true);
+    expect(matchesStructureQuery(at('.note'), 'nothing')).toBe(true);
+    expect(matchesStructureQuery(at('.note'), 'here')).toBe(false);
+    expect(matchesStructureQuery(at('#s'), 'save')).toBe(false);
+  });
+
+  it('does not match the source inside a style or script, which its row does not show', () => {
+    expect(matchesStructureQuery(at('style'), 'note')).toBe(false);
+    expect(matchesStructureQuery(at('style'), 'style')).toBe(true);
+  });
+
+  it('matches everything when the query is blank', () => {
+    expect(matchesStructureQuery(at('#s'), '   ')).toBe(true);
   });
 });

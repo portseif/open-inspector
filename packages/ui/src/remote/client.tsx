@@ -87,6 +87,7 @@ export function mountRemotePanel(
     select: (id) => call('structure', 'select', id),
     setAllExpanded: (expanded) => call('structure', 'setAllExpanded', expanded),
     setScriptOnly: (on) => call('structure', 'setScriptOnly', on),
+    setQuery: (query) => call('structure', 'setQuery', query),
   };
 
   function editingFrom(snapshot: EditingSnapshot): EditingApi {

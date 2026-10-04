@@ -74,6 +74,7 @@ function fakeOptions(editing = fakeEditing()): PanelOptions & { editing: Editing
       select: vi.fn(),
       setAllExpanded: vi.fn(),
       setScriptOnly: vi.fn(),
+      setQuery: vi.fn(),
     },
   };
 }
@@ -143,6 +144,9 @@ describe('createRemoteSurface', () => {
     call('editing', 'focusBox', { region: 'everywhere', side: null });
     call('structure', 'select', 7);
     call('structure', 'select', '7');
+    call('structure', 'setQuery', 'card');
+    call('structure', 'setQuery', 7);
+    call('structure', 'setQuery', 'x'.repeat(500));
 
     expect(options.onTogglePicking).toHaveBeenCalledTimes(1);
     expect(options.onStep).toHaveBeenCalledTimes(1);
@@ -152,6 +156,9 @@ describe('createRemoteSurface', () => {
     expect(options.editing.focusBox).toHaveBeenCalledTimes(1);
     expect(options.structure?.select).toHaveBeenCalledTimes(1);
     expect(options.structure?.select).toHaveBeenCalledWith(7);
+    expect(options.structure?.setQuery).toHaveBeenCalledTimes(2);
+    expect(options.structure?.setQuery).toHaveBeenNthCalledWith(1, 'card');
+    expect(options.structure?.setQuery).toHaveBeenNthCalledWith(2, 'x'.repeat(200));
   });
 
   it('hands an audit failure over by id and selects its element when asked', () => {

@@ -217,6 +217,7 @@ export const DEFAULT_STRUCTURE_CHILD_LIMIT = 100;
 export const MAX_STRUCTURE_ROWS = 1000;
 
 const ELEMENT_NODE = 1;
+const TEXT_NODE = 3;
 const DOCUMENT_FRAGMENT_NODE = 11;
 
 /** Text that would only be noise in a row: source code and inert markup. */
@@ -459,6 +460,35 @@ export function matchingStructure(
   }
 
   return { rows, truncated: false };
+}
+
+/**
+ * Whether an element answers a search typed into the structure tree.
+ *
+ * Matched against what its row shows, `tag#id.class`, and against its own
+ * text: the text nodes directly inside it, not its descendants', or every
+ * ancestor of a match would match as well. Not the source in a script or
+ * style, which its row does not show either. Case and runs of whitespace
+ * are ignored; an empty query matches everything.
+ */
+export function matchesStructureQuery(element: Element, query: string): boolean {
+  const wanted = query.replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!wanted) return true;
+
+  const tag = element.tagName.toLowerCase();
+  const id = element.id ? `#${element.id}` : '';
+  const classes = Array.from(element.classList, (name) => `.${name}`).join('');
+  // With and without the id, so `button.primary` finds `button#save.primary`.
+  if (`${tag}${id}${classes}`.toLowerCase().includes(wanted)) return true;
+  if (`${tag}${classes}`.toLowerCase().includes(wanted)) return true;
+
+  if (NO_TEXT_PREVIEW.has(element.tagName.toUpperCase())) return false;
+  for (const child of Array.from(element.childNodes)) {
+    if (child.nodeType !== TEXT_NODE) continue;
+    const text = (child.textContent ?? '').replace(/\s+/g, ' ').toLowerCase();
+    if (text.includes(wanted)) return true;
+  }
+  return false;
 }
 
 /**

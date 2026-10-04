@@ -124,6 +124,16 @@ describe('createInspectorSession', () => {
     field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
     expect(session.picking).toBe(true);
 
+    // As does a part of the panel that says it answers Escape itself.
+    const owner = document.createElement('div');
+    owner.setAttribute('data-owns-escape', '');
+    owner.tabIndex = 0;
+    shadow.appendChild(owner);
+    owner.focus();
+    owner.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
+    expect(session.picking).toBe(true);
+    owner.blur();
+
     // Anywhere else in the panel it still unwinds.
     field.blur();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));

@@ -102,6 +102,8 @@ export interface StructureInfo {
   allExpanded: boolean;
   /** Listing only the elements with JavaScript wired to them, flat. */
   scriptOnly: boolean;
+  /** What the tree's search holds. While it holds anything the rows are its matches, flat. */
+  query: string;
   /** Whether the JS-only filter can be offered at all. */
   canFilterScripts: boolean;
 }

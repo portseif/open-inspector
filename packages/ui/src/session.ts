@@ -691,6 +691,14 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
         scheduleRender();
       },
 
+      setQuery(query) {
+        structure?.setQuery(query);
+        // Clearing a search goes back to the tree, opened down to where you are.
+        const shown = pinnedElement ?? currentElement;
+        if (!query.trim() && shown) structure?.reveal(shown);
+        scheduleRender();
+      },
+
       preview(id) {
         const next = id === null ? null : (structure?.elementFor(id) ?? null);
         if (next === previewElement) return;
@@ -1128,12 +1136,16 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
 
     /*
      * A field in the panel (the filter, a value being edited) answers Escape
-     * itself, by clearing or cancelling. This listener captures, so it hears
-     * the key before the field can stop it, and has to stand aside. The
-     * panel's shadow root is open, so the path reaches the field itself.
+     * itself, by clearing or cancelling, and so does a part of the panel
+     * marked `data-owns-escape`, like the tree while a search narrows it.
+     * This listener captures, so it hears the key before either can stop it,
+     * and has to stand aside. The panel's shadow root is open, so the path
+     * reaches them.
      */
-    const target = event.composedPath()[0] as Node | undefined;
-    if (focusInPanel && target?.nodeType === 1 && isEditable(target as Element)) return;
+    const path = event.composedPath();
+    const target = path[0] as Node | undefined;
+    const owned = path.some((node) => (node as Element).hasAttribute?.('data-owns-escape'));
+    if (focusInPanel && (owned || (target?.nodeType === 1 && isEditable(target as Element)))) return;
 
     /**
      * Escape unwinds one step at a time, never more.

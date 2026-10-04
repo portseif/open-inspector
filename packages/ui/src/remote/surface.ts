@@ -27,6 +27,9 @@ const SIDES = new Set(['top', 'right', 'bottom', 'left']);
 const STEPS = new Set(['parent', 'child', 'previous', 'next']);
 
 const isString = (value: unknown): value is string => typeof value === 'string';
+
+/** Longer than anything worth typing into the tree's search. */
+const MAX_QUERY_LENGTH = 200;
 const isId = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value);
 const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
 
@@ -231,6 +234,10 @@ export function createRemoteSurface(port: RemotePort, options: PanelOptions): Pa
           return;
         case 'setScriptOnly':
           if (isBoolean(a)) structure.setScriptOnly(a);
+          return;
+        case 'setQuery':
+          // Capped: it is matched against every element on the page.
+          if (isString(a)) structure.setQuery(a.slice(0, MAX_QUERY_LENGTH));
           return;
       }
     }
