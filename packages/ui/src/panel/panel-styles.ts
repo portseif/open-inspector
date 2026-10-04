@@ -1559,7 +1559,10 @@ ${LIGHT_PANEL}  }
   /*
    * The clipboard form. Its label rises above it rather than out to the
    * side: in a row it would cover the value it copies, and below it a later
-   * row, painted after, would cover the label.
+   * row, painted after, would cover the label. It lines up with the button's
+   * right edge, since these buttons sit at the right of what they belong to:
+   * centred, it reached past the panel's edge, and even hidden it counted
+   * toward the width the body scrolls.
    */
   .copy-icon { position: relative; }
   /*
@@ -1574,11 +1577,12 @@ ${LIGHT_PANEL}  }
     padding: 0;
   }
   .copy-icon .tab-label {
-    --label-shift: translateX(-50%);
-    left: 50%;
+    --label-shift: none;
+    left: auto;
+    right: 0;
     top: auto;
     bottom: calc(100% + 6px);
-    transform-origin: bottom center;
+    transform-origin: bottom right;
   }
 
   /* ---------- footer ---------- */
