@@ -107,7 +107,7 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
 }
 
 /**
- * Code with its copy button in the bottom-right corner, over the code rather
+ * Code with its copy button in the top-right corner, over the code rather
  * than in a bar above it. Outside the scrolling block, so it stays put while
  * a long one scrolls.
  */

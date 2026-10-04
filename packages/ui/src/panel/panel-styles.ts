@@ -2030,8 +2030,9 @@ ${LIGHT_PANEL}  }
   .tok-selector, .tok-class-name, .tok-variable { color: var(--syn-selector); }
 
   /*
-   * A block with its buttons in the bottom-right corner. The block keeps
-   * clear below them, so the last line never runs underneath.
+   * A block with its buttons in the top-right corner. The block keeps clear
+   * of them on the right, so no wrapped line runs underneath: wider where
+   * there are two, as in the SVG tool.
    */
   .code-block {
     position: relative;
@@ -2040,11 +2041,12 @@ ${LIGHT_PANEL}  }
     flex: 1 1 0;
     min-height: 120px;
   }
-  .code-block pre { padding-bottom: 32px; }
+  .code-block pre { padding-right: 32px; }
+  .code-block:has(.code-actions > :nth-child(2)) pre { padding-right: 54px; }
   .code-actions {
     position: absolute;
+    top: 6px;
     right: 6px;
-    bottom: 6px;
     display: flex;
     gap: 2px;
   }
