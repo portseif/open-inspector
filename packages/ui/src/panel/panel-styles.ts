@@ -2030,8 +2030,8 @@ ${LIGHT_PANEL}  }
   .tok-selector, .tok-class-name, .tok-variable { color: var(--syn-selector); }
 
   /*
-   * A block with its copy button in the corner. The block keeps clear of the
-   * button on the right, so no wrapped line runs underneath it.
+   * A block with its buttons in the bottom-right corner. The block keeps
+   * clear below them, so the last line never runs underneath.
    */
   .code-block {
     position: relative;
@@ -2040,19 +2040,16 @@ ${LIGHT_PANEL}  }
     flex: 1 1 0;
     min-height: 120px;
   }
-  .code-block pre { padding-right: 32px; }
+  .code-block pre { padding-bottom: 32px; }
   .code-actions {
     position: absolute;
-    top: 6px;
     right: 6px;
+    bottom: 6px;
     display: flex;
     gap: 2px;
   }
   .code-actions .copy { background: var(--bg-sunk); }
   .code-actions .copy:hover { background: var(--bg-raised); }
-  /* In the bottom corner the block keeps clear below instead, so the last line does not run under them. */
-  .code-block[data-corner='bottom'] pre { padding-right: 10px; padding-bottom: 32px; }
-  .code-block[data-corner='bottom'] .code-actions { top: auto; bottom: 6px; }
 
   .export-actions { display: flex; flex-wrap: wrap; gap: 4px; }
 

@@ -90,7 +90,6 @@ export function SvgTool({
       <CodeBlock
         text={text}
         language="markup"
-        corner="bottom"
         actions={
           editing ? (
             <button
