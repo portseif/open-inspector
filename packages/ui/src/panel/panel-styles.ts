@@ -1785,11 +1785,30 @@ ${LIGHT_PANEL}  }
   .js-actions { margin-left: auto; display: flex; gap: 2px; }
   /* A handler is usually a line or two; a code block's panel-filling height is for files. */
   .js-source { flex: none; min-height: 0; max-height: 180px; }
+  /*
+   * An open script is a file: it takes what the tab has left, the way
+   * Markup's code does, through each box between it and the body. Never
+   * less than its content, so a long list still scrolls as a list.
+   */
+  .body > .group:has(.js-more[open]),
+  .group:has(.js-more[open]) > .js-list,
+  .js-item:has(> .js-more[open]),
+  .js-more[open] { flex: 1 0 auto; }
+  /*
+   * A details element keeps its content in a box of its own, past the
+   * summary; that box has to grow too. Where the pseudo-element is unknown
+   * the source keeps its minimum height.
+   */
+  .js-more[open],
+  .js-more[open]::details-content { display: flex; flex-direction: column; }
+  .js-more[open]::details-content { flex: 1 0 auto; }
   .js-more summary {
     width: max-content;
     font-size: 10.5px;
     color: var(--ink-mute);
     cursor: pointer;
+    /* A toggle, not text: a quick double-click should not select the word. */
+    user-select: none;
   }
   .js-more summary:hover { color: var(--ink); }
   .js-more[open] summary { margin-bottom: 4px; }

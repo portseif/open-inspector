@@ -1,7 +1,7 @@
 import type { script } from '@open-inspector/core';
 import type { PanelData } from './view-model.js';
 import { Highlighted } from './highlight.jsx';
-import { CopyButton, Empty, Group, formatBytes } from './primitives.jsx';
+import { CodeBlock, CopyButton, Empty, Group, formatBytes } from './primitives.jsx';
 
 const VIA_LABELS: Record<script.HandlerSource, string> = {
   attribute: 'attribute',
@@ -42,17 +42,16 @@ function ScriptItem({ entry }: { entry: script.PageScript }) {
         {entry.async ? <span class="js-tag">async</span> : null}
         {entry.defer ? <span class="js-tag">defer</span> : null}
         {entry.bytes !== undefined ? <span class="js-detail">{formatBytes(entry.bytes)}</span> : null}
-        <span class="js-actions">
-          {entry.url ? <CopyButton text={entry.url} label="copy URL" /> : null}
-          {entry.text ? <CopyButton text={entry.text} /> : null}
-        </span>
+        {entry.url ? (
+          <span class="js-actions">
+            <CopyButton text={entry.url} label="copy URL" />
+          </span>
+        ) : null}
       </div>
       {entry.text ? (
         <details class="js-more">
           <summary>source</summary>
-          <pre class="js-source" tabIndex={0}>
-            <Highlighted text={entry.text} language="javascript" />
-          </pre>
+          <CodeBlock text={entry.text} language="javascript" />
         </details>
       ) : null}
     </li>
