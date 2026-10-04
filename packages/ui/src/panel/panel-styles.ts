@@ -1315,7 +1315,8 @@ export const PANEL_STYLES = `
   }
   .tab:focus-visible .tab-label,
   .rail-foot .icon-btn:focus-visible .tab-label,
-  .structure-bar button:focus-visible .tab-label { opacity: 1; transform: var(--label-shift); }
+  .structure-bar button:focus-visible .tab-label,
+  .copy-icon:focus-visible .tab-label { opacity: 1; transform: var(--label-shift); }
   /*
    * A short wait before the first label, so sweeping the pointer across the
    * rail does not flash every name on the way. Only where hover is real: a
@@ -1324,10 +1325,12 @@ export const PANEL_STYLES = `
   @media (hover: hover) and (pointer: fine) {
     .tab:hover,
     .rail-foot .icon-btn:hover,
-    .structure-bar button:hover { --label-duration: 150ms; --label-delay: 150ms; }
+    .structure-bar button:hover,
+    .copy-icon:hover { --label-duration: 150ms; --label-delay: 150ms; }
     .tab:hover .tab-label,
     .rail-foot .icon-btn:hover .tab-label,
-    .structure-bar button:hover .tab-label { opacity: 1; transform: var(--label-shift); }
+    .structure-bar button:hover .tab-label,
+    .copy-icon:hover .tab-label { opacity: 1; transform: var(--label-shift); }
   }
   /*
    * At once: from the keyboard, which should never wait on an animation, and
@@ -1486,14 +1489,16 @@ export const PANEL_STYLES = `
     overflow-wrap: anywhere;
   }
 
+  /* A hairline at rest so it reads as a button rather than a stray word. */
   .copy {
     font-size: 10.5px;
     color: var(--ink-mute);
     padding: 1px 4px;
     border-radius: 6px;
+    border-color: var(--rule);
   }
-  /* Answers the pointer as the Hide toggle does: filled, the ink brightening. */
-  .copy:hover { color: var(--ink); background: var(--bg-sunk); }
+  /* Answers the pointer as the Hide toggle does, filled with the ink brightening, and firms its edge as Scan the page does. */
+  .copy:hover { color: var(--ink); background: var(--bg-sunk); border-color: var(--rule-strong); }
 
   /*
    * Hover-to-reveal belongs to dense value rows and nowhere else.
@@ -1509,6 +1514,27 @@ export const PANEL_STYLES = `
     .row .copy, .asset .copy { opacity: 1; }
   }
   .copy[data-copied='true'] { color: var(--good); opacity: 1; }
+
+  /*
+   * The clipboard form. Its label rises above it rather than out to the
+   * side: in a row it would cover the value it copies, and below it a later
+   * row, painted after, would cover the label.
+   */
+  .copy-icon { position: relative; }
+  .copy.copy-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+  }
+  .copy-icon .tab-label {
+    --label-shift: translateX(-50%);
+    left: 50%;
+    top: auto;
+    bottom: calc(100% + 6px);
+    transform-origin: bottom center;
+  }
 
   /* ---------- footer ---------- */
 
@@ -1844,6 +1870,7 @@ export const PANEL_STYLES = `
    * minimums keep it usable when the content above it is tall.
    */
   .body > .group:has(> pre),
+  .body > .group:has(> .code-block),
   .body > .group:has(.svg-tool) { flex: 1 1 0; min-height: 180px; }
 
   /* ---------- svg tool ---------- */
@@ -1913,7 +1940,28 @@ export const PANEL_STYLES = `
     overflow-wrap: anywhere;
   }
 
-  pre + .empty { margin-top: 4px; }
+  pre + .empty,
+  .code-block + .empty { margin-top: 4px; }
+
+  /*
+   * A block with its copy button in the corner. The block keeps clear of the
+   * button on the right, so no wrapped line runs underneath it.
+   */
+  .code-block {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 120px;
+  }
+  .code-block pre { padding-right: 32px; }
+  .code-block > .copy {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: var(--bg-sunk);
+  }
+  .code-block > .copy:hover { background: var(--bg-raised); }
 
   .export-actions { display: flex; flex-wrap: wrap; gap: 4px; }
 

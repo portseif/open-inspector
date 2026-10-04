@@ -87,7 +87,7 @@ export function SvgTool({
       ) : null}
 
       <div class="export-actions">
-        <CopyButton text={text} label="copy" />
+        <CopyButton text={text} />
         {editing ? (
           <button
             type="button"

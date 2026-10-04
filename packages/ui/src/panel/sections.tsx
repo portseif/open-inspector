@@ -8,6 +8,7 @@ import type {
 } from './view-model.js';
 import {
   Badge,
+  CodeBlock,
   CopyButton,
   Empty,
   Group,
@@ -712,7 +713,7 @@ function AssetRow({ asset }: { asset: AssetEntry }) {
               save
             </button>
           ) : null}
-          <CopyButton text={asset.url || asset.name} label="copy" />
+          <CopyButton text={asset.url || asset.name} />
           {markup ? (
             <button
               type="button"
@@ -805,15 +806,7 @@ export function SourceSection({ data }: SectionProps) {
       />
 
       <Group title={`Source · ${source.language}`}>
-        {source.text ? (
-          <>
-            <div class="export-actions">
-              <CopyButton text={source.text} label="copy" />
-            </div>
-            {/* Focusable, so a keyboard user can scroll a long stylesheet. */}
-            <pre tabIndex={0}>{source.text}</pre>
-          </>
-        ) : null}
+        {source.text ? <CodeBlock text={source.text} /> : null}
         {source.note ? <Empty>{source.note}</Empty> : null}
         {source.truncated ? (
           <Empty>This is long enough that only the first 100,000 characters are shown.</Empty>
@@ -879,11 +872,7 @@ export function MarkupSection({ data }: SectionProps) {
 function MarkupText({ text }: { text: string }) {
   return (
     <Group title="Markup">
-      <div class="export-actions">
-        <CopyButton text={text} label="copy" />
-      </div>
-      {/* Focusable, so a keyboard user can scroll a long export. */}
-      <pre tabIndex={0}>{text}</pre>
+      <CodeBlock text={text} />
       <Empty>
         Framework attributes, scripts and inline styles are stripped, and the subtree stops at six
         levels — this is markup to paste, not a recording of the live DOM.

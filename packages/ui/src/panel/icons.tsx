@@ -38,6 +38,10 @@ const PATHS = {
   eye: 'M1.8 8S4 3.8 8 3.8 14.2 8 14.2 8 12 12.2 8 12.2 1.8 8 1.8 8zM8 6.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6z',
   eyeOff: 'M1.8 8S4 3.8 8 3.8 14.2 8 14.2 8 12 12.2 8 12.2 1.8 8 1.8 8zM8 6.2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6zM2.5 13.5l11-11',
   search: 'M7 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM10 10l3 3',
+  // A board with its clip on top, and the tick it turns into once copied.
+  clipboard:
+    'M5.5 3.5h-1A1.5 1.5 0 0 0 3 5v8a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 13 13V5a1.5 1.5 0 0 0-1.5-1.5h-1M6.5 2h3a1 1 0 0 1 1 1v.5a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z',
+  check: 'M3.5 8.5l3 3 6-7',
   coffee: 'M3 6.5h8V10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM11 7.5h1a1.5 1.5 0 0 1 0 3h-1M5.5 2.5V4M8.5 2.5V4',
   // A bezier curve between two anchor points: vector artwork.
   svg: 'M4 12C5.5 6.5 10.5 9.5 12 4M2.5 11h3v3h-3zM10.5 2.5h3v3h-3z',

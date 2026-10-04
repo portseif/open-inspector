@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
+import { Icon } from './icons.jsx';
 import { filterFields, useSearch } from './search.jsx';
 import type { Field } from './view-model.js';
 
@@ -61,7 +62,11 @@ export async function copyText(text: string, near?: Node | null): Promise<boolea
   }
 }
 
-export function CopyButton({ text, label = 'copy' }: { text: string; label?: string }) {
+/**
+ * A label only where it says what gets copied ("copy for AI" beside "copy
+ * CSS"); a plain copy is a clipboard, its name in the panel's own label.
+ */
+export function CopyButton({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
 
   const onClick = useCallback(
@@ -73,6 +78,20 @@ export function CopyButton({ text, label = 'copy' }: { text: string; label?: str
     [text],
   );
 
+  if (!label) {
+    return (
+      <button
+        type="button"
+        class="copy copy-icon"
+        data-copied={copied ? 'true' : 'false'}
+        onClick={onClick}
+      >
+        <Icon name={copied ? 'check' : 'clipboard'} size={12} />
+        <span class="tab-label">{copied ? 'Copied' : 'Copy'}</span>
+      </button>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -83,6 +102,21 @@ export function CopyButton({ text, label = 'copy' }: { text: string; label?: str
     >
       {copied ? 'copied' : label}
     </button>
+  );
+}
+
+/**
+ * Code with its copy button in the top-right corner, over the code rather
+ * than in a bar above it. Outside the scrolling block, so it stays put while
+ * a long one scrolls.
+ */
+export function CodeBlock({ text }: { text: string }) {
+  return (
+    <div class="code-block">
+      {/* Focusable, so a keyboard user can scroll a long block. */}
+      <pre tabIndex={0}>{text}</pre>
+      <CopyButton text={text} />
+    </div>
   );
 }
 

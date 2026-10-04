@@ -183,17 +183,17 @@ test.describe('copying', () => {
    * world even when the copy happened, so the button used to never confirm.
    * It now trusts the textarea's `copy` event instead.
    */
-  test('a copy button confirms with "copied"', async ({ context, serviceWorker }) => {
+  test('a copy button confirms with "Copied"', async ({ context, serviceWorker }) => {
     const page = await context.newPage();
     await openInspector(page, serviceWorker, EGRESS_URL);
     await pin(page, '#hover-target');
     await openTab(page, 'assets');
 
-    // By its title, which stays put: the accessible name changes to "copied",
-    // which a `name: 'copy'` locator would stop matching.
-    const copy = assetRow(page, 'loaded.svg').locator('button[title^="Copy "]').first();
+    // By its class, which stays put: the accessible name changes to "Copied",
+    // which a `name: 'Copy'` locator would stop matching.
+    const copy = assetRow(page, 'loaded.svg').locator('.copy-icon');
     await copy.click();
-    await expect(copy).toHaveText('copied');
+    await expect(copy).toHaveText('Copied');
     await expect(copy).toHaveAttribute('data-copied', 'true');
   });
 });
