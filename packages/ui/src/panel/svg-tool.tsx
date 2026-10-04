@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'preact/hooks';
 import { assets, svg } from '@open-inspector/core';
 import { useEditing } from './editing.jsx';
-import { Highlighted } from './highlight.jsx';
 import { Icon } from './icons.jsx';
-import { CopyButton, Empty, Group, formatBytes } from './primitives.jsx';
+import { CodeBlock, Empty, Group, formatBytes } from './primitives.jsx';
 
 type SvgMode = 'optimized' | 'minified' | 'beautified';
 
@@ -88,24 +87,23 @@ export function SvgTool({
         </div>
       ) : null}
 
-      <div class="export-actions">
-        <CopyButton text={text} />
-        {editing ? (
-          <button
-            type="button"
-            class="copy copy-icon"
-            onClick={() => editing.save(dataUri, filename)}
-          >
-            <Icon name="export" size={12} />
-            <span class="tab-label">Save as .svg</span>
-          </button>
-        ) : null}
-      </div>
-
-      {/* Focusable, so a keyboard user can scroll a long file. */}
-      <pre tabIndex={0}>
-        <Highlighted text={text} language="markup" />
-      </pre>
+      <CodeBlock
+        text={text}
+        language="markup"
+        corner="bottom"
+        actions={
+          editing ? (
+            <button
+              type="button"
+              class="copy copy-icon"
+              onClick={() => editing.save(dataUri, filename)}
+            >
+              <Icon name="export" size={12} />
+              <span class="tab-label">Save as .svg</span>
+            </button>
+          ) : null
+        }
+      />
     </div>
   );
 }

@@ -1962,6 +1962,8 @@ ${LIGHT_PANEL}  }
   /* Under an asset row: a bounded block, since the list goes on below it. */
   .asset-svg { padding: 4px 0 10px; }
   .asset-svg .svg-tool pre { flex: none; max-height: 240px; }
+  /* As tall as its code there, so the buttons in its corner sit at the code's end. */
+  .asset-svg .svg-tool .code-block { flex: none; min-height: 0; }
 
   pre {
     flex: 1 1 0;
@@ -2014,13 +2016,18 @@ ${LIGHT_PANEL}  }
     min-height: 120px;
   }
   .code-block pre { padding-right: 32px; }
-  .code-block > .copy {
+  .code-actions {
     position: absolute;
     top: 6px;
     right: 6px;
-    background: var(--bg-sunk);
+    display: flex;
+    gap: 2px;
   }
-  .code-block > .copy:hover { background: var(--bg-raised); }
+  .code-actions .copy { background: var(--bg-sunk); }
+  .code-actions .copy:hover { background: var(--bg-raised); }
+  /* In the bottom corner the block keeps clear below instead, so the last line does not run under them. */
+  .code-block[data-corner='bottom'] pre { padding-right: 10px; padding-bottom: 32px; }
+  .code-block[data-corner='bottom'] .code-actions { top: auto; bottom: 6px; }
 
   .export-actions { display: flex; flex-wrap: wrap; gap: 4px; }
 

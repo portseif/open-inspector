@@ -107,24 +107,33 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
 }
 
 /**
- * Code with its copy button in the top-right corner, over the code rather
- * than in a bar above it. Outside the scrolling block, so it stays put while
- * a long one scrolls.
+ * Code with its copy button in a corner, over the code rather than in a bar
+ * above it. Outside the scrolling block, so it stays put while a long one
+ * scrolls.
  */
 export function CodeBlock({
   text,
   language,
+  corner = 'top',
+  actions,
 }: {
   text: string;
   language?: CodeLanguage | undefined;
+  /** Which corner on the right the buttons sit in. */
+  corner?: 'top' | 'bottom' | undefined;
+  /** More buttons, placed before the copy button. */
+  actions?: ComponentChildren;
 }) {
   return (
-    <div class="code-block">
+    <div class="code-block" data-corner={corner}>
       {/* Focusable, so a keyboard user can scroll a long block. */}
       <pre tabIndex={0}>
         <Highlighted text={text} language={language} />
       </pre>
-      <CopyButton text={text} />
+      <div class="code-actions">
+        {actions}
+        <CopyButton text={text} />
+      </div>
     </div>
   );
 }
