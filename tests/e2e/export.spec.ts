@@ -154,7 +154,7 @@ test.describe('copying', () => {
       const shown = await panel(page).locator('#oi-tabpanel pre').textContent();
       expect(shown?.trim(), `${label} should not be empty`).toBeTruthy();
 
-      const copy = panel(page).getByRole('button', { name: 'copy all' });
+      const copy = panel(page).locator('#oi-tabpanel .code-block .copy');
       expect(await copyVia(page, copy)).toBe(shown);
 
       if (label === 'JSON' || label === 'W3C tokens') expect(() => JSON.parse(shown!)).not.toThrow();

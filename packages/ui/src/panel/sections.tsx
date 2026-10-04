@@ -23,7 +23,7 @@ import { assetUrlList, downloadAsset, safeFilename, withExtension } from './down
 import { color, svg } from '@open-inspector/core';
 import { useSearch } from './search.jsx';
 import { SvgTool } from './svg-tool.jsx';
-import { Highlighted, type CodeLanguage } from './highlight.jsx';
+import type { CodeLanguage } from './highlight.jsx';
 
 /** Shared shape: every section renders from `PanelData` and nothing else. */
 interface SectionProps {
@@ -933,12 +933,7 @@ export function ExportSection({ data }: SectionProps) {
       </Group>
 
       <Group title={current.label}>
-        <div class="export-actions">
-          <CopyButton text={current.text} label="copy all" />
-        </div>
-        <pre tabIndex={0}>
-          <Highlighted text={current.text} language={EXPORT_LANGUAGES[current.id]} />
-        </pre>
+        <CodeBlock text={current.text} language={EXPORT_LANGUAGES[current.id]} />
       </Group>
     </>
   );
