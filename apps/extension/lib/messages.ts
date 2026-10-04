@@ -9,6 +9,7 @@ export const TOGGLE = 'open-inspector:toggle';
 export const SAVE = 'open-inspector:save';
 export const RESIZE = 'open-inspector:resize';
 export const HANDLERS = 'open-inspector:handlers';
+export const BEAUTIFY = 'open-inspector:beautify';
 export const DEVTOOLS_ATTACH = 'open-inspector:devtools-attach';
 export const DEVTOOLS_SETUP = 'open-inspector:devtools-setup';
 
@@ -85,6 +86,22 @@ export interface HandlersMessage {
 export interface HandlersResponse {
   ok: boolean;
 }
+
+/**
+ * Ask the worker to format JavaScript for reading: an inline script or a
+ * handler, as the JS tab shows it.
+ *
+ * The worker carries the formatter so the bundle injected into every page
+ * does not. It answers with the formatted code as a string. Nothing leaves
+ * the extension; the code is the page's own, already in the content script.
+ */
+export interface BeautifyMessage {
+  type: typeof BEAUTIFY;
+  code: string;
+}
+
+/** Past this the panel shows code as written: an inline script is cut at 20,000 characters anyway. */
+export const MAX_BEAUTIFY_LENGTH = 50_000;
 
 /**
  * Worker → content script: a DevTools tab is showing this tab, so connect to
@@ -227,6 +244,16 @@ export function isSaveMessage(value: unknown): value is SaveMessage {
  * the sender's choosing on every element of the page.
  */
 const HANDLER_EVENT = /^open-inspector-handlers-[a-z0-9]{6,16}$/;
+
+export function isBeautifyMessage(value: unknown): value is BeautifyMessage {
+  if (typeof value !== 'object' || value === null) return false;
+  const message = value as Partial<BeautifyMessage>;
+  return (
+    message.type === BEAUTIFY &&
+    typeof message.code === 'string' &&
+    message.code.length <= MAX_BEAUTIFY_LENGTH
+  );
+}
 
 export function isHandlersMessage(value: unknown): value is HandlersMessage {
   if (typeof value !== 'object' || value === null) return false;

@@ -5,7 +5,9 @@ import { createDevtoolsBridge } from '../lib/devtools-bridge.js';
 import {
   DEVTOOLS_ATTACH,
   DEVTOOLS_SETUP,
+  BEAUTIFY,
   HANDLERS,
+  MAX_BEAUTIFY_LENGTH,
   PING,
   RESIZE,
   SAVE,
@@ -100,6 +102,21 @@ export default defineContentScript({
           return response?.ok === true;
         } catch {
           return false;
+        }
+      },
+
+      // The worker carries the formatter, so this bundle does not. Code the
+      // worker would refuse, or a worker that does not answer, leaves it as written.
+      beautify: async (code) => {
+        if (code.length > MAX_BEAUTIFY_LENGTH) return code;
+        try {
+          const formatted: unknown = await withTimeout(
+            browser.runtime.sendMessage({ type: BEAUTIFY, code }),
+            4000,
+          );
+          return typeof formatted === 'string' ? formatted : code;
+        } catch {
+          return code;
         }
       },
 

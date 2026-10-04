@@ -114,6 +114,12 @@ export interface SessionOptions {
    */
   readPageHandlers?: (eventName: string) => Promise<boolean>;
   /**
+   * Formats JavaScript for reading: inline scripts and handler sources, as
+   * the JS tab shows them. The extension's worker carries the formatter so
+   * the injected bundle does not; absent, code is shown as written.
+   */
+  beautify?: (code: string) => Promise<string>;
+  /**
    * Builds the panel. Defaults to the in-page one; the extension swaps in a
    * remote one while a DevTools tab is showing it. Asked again whenever the
    * panel is rebuilt, so the choice can change between paints.
@@ -304,6 +310,60 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     pageHandlersRead = ran;
     structure?.refreshScripts();
     if (active) scheduleRender();
+  }
+
+  /** Formatted JavaScript, by the source it was made from: each is formatted once. */
+  const beautified = new Map<string, string>();
+  const beautifying = new Set<string>();
+  /** Counts formatted results landing, so the page data is rebuilt once per batch, not per repaint. */
+  let beautifiedCount = 0;
+  let prettyPage: { source: PageData; count: number; page: PageData } | null = null;
+
+  /**
+   * Code as the panel shows it: formatted once the formatter has answered,
+   * as written until then. Asking is fire and forget; the answer repaints.
+   */
+  function pretty(code: string): string {
+    const formatted = beautified.get(code);
+    if (formatted !== undefined) return formatted;
+    const beautify = options.beautify;
+    if (beautify && !beautifying.has(code)) {
+      beautifying.add(code);
+      beautify(code)
+        .then(
+          (result) => beautified.set(code, result),
+          () => beautified.set(code, code),
+        )
+        .finally(() => {
+          beautifying.delete(code);
+          beautifiedCount += 1;
+          if (active) scheduleRender();
+        });
+    }
+    return code;
+  }
+
+  /** Script kinds worth formatting: JavaScript, and the JSON a page keeps in a script tag. */
+  const FORMATTED_SCRIPTS = new Set(['classic', 'module', 'json', 'importmap']);
+
+  /**
+   * The page data with its inline scripts formatted. The same object until a
+   * formatted result lands, since the DevTools tab resends the page data
+   * whenever it is a new one.
+   */
+  function withPrettyScripts(page: PageData): PageData {
+    if (prettyPage?.source === page && prettyPage.count === beautifiedCount) return prettyPage.page;
+    let changed = false;
+    const scripts = page.scripts.map((entry) => {
+      if (!entry.text || !FORMATTED_SCRIPTS.has(entry.kind)) return entry;
+      const text = pretty(entry.text);
+      if (text === entry.text) return entry;
+      changed = true;
+      return { ...entry, text };
+    });
+    const next = changed ? { ...page, scripts } : page;
+    prettyPage = { source: page, count: beautifiedCount, page: next };
+    return next;
   }
 
   /** One element's handlers: inline ones read here, the rest from the page read. */
@@ -821,7 +881,10 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
 
     data.boundary = boundary;
     data.settings = settings;
-    data.handlers = handlersOf(element);
+    data.handlers = handlersOf(element).map((handler) => {
+      const source = pretty(handler.source);
+      return source === handler.source ? handler : { ...handler, source };
+    });
     data.handlersRead = pageHandlersRead ? 'page' : 'inline';
 
     // Rebuilt on every paint while the drawer is open, which keeps it true to
@@ -873,7 +936,7 @@ export function createInspectorSession(options: SessionOptions = {}): InspectorS
     // Page-wide findings persist across hovers: the palette does not change
     // because the pointer moved. Breakpoints refresh on the next settle.
     if (pageData) {
-      data.page = pageData;
+      data.page = withPrettyScripts(pageData);
       data.exports = pageData.exports;
     }
 

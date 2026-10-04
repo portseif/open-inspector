@@ -157,5 +157,10 @@ test.describe('js view', () => {
     await expect(inline).toHaveCount(1);
     await inline.locator('summary').click();
     await expect(inline.locator('.js-source')).toContainText('saveDraft');
+
+    // Written on one line, shown formatted: the worker beautifies it.
+    await expect(inline.locator('.js-source')).toContainText(
+      "document.getElementById('react')['__reactProps$fixture'] = {\n  onClick: function openDialog() {},",
+    );
   });
 });

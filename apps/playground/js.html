@@ -25,13 +25,7 @@
       <a id="js-link" href="javascript:void 0">javascript: link</a>
       <p id="plain">No handlers at all</p>
     </main>
-    <script>
-      document.getElementById('property').onclick = function saveDraft() {};
-      document.getElementById('react')['__reactProps$fixture'] = {
-        onClick: function openDialog() {},
-        children: 'React prop',
-      };
-      document.getElementById('vue')._vei = { onInput: { value: function syncField() {} } };
-    </script>
+    <!-- On one line on purpose, as a minifier leaves it: the JS tab shows it formatted. -->
+    <script>document.getElementById('property').onclick=function saveDraft(){};document.getElementById('react')['__reactProps$fixture']={onClick:function openDialog(){},children:'React prop'};document.getElementById('vue')._vei={onInput:{value:function syncField(){}}};</script>
   </body>
 </html>

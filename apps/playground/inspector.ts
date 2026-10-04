@@ -1,4 +1,5 @@
 import { probeAtPoint, readBoxModel, describeElement, script } from '@open-inspector/core';
+import { js as beautifyJs } from 'js-beautify';
 import {
   createInspectorSession,
   type InspectorSession,
@@ -101,6 +102,9 @@ const session = createInspectorSession({
     script.probeHandlersInPage(eventName, 8000);
     return Promise.resolve(true);
   },
+  // Formatted right here; the extension asks its worker, which carries the formatter.
+  beautify: (code) =>
+    Promise.resolve(beautifyJs(code, { indent_size: 2, max_preserve_newlines: 2, end_with_newline: false })),
 });
 
 // Assigned, not added: this module runs again on every update, and a second

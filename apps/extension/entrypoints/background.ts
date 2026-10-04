@@ -1,5 +1,6 @@
 import { defineBackground } from 'wxt/sandbox';
 import { script } from '@open-inspector/core';
+import beautifyJs from 'js-beautify/js/src/javascript/index.js';
 import {
   DEVTOOLS_ATTACH,
   DEVTOOLS_PORT,
@@ -10,6 +11,7 @@ import {
   isDevtoolsHello,
   isDevtoolsSetupMessage,
   isDevtoolsStart,
+  isBeautifyMessage,
   isHandlersMessage,
   isResizeMessage,
   isSaveMessage,
@@ -408,7 +410,19 @@ export default defineBackground(() => {
         tab?: { id?: number | undefined; windowId?: number | undefined } | undefined;
         frameId?: number | undefined;
       },
-    ): Promise<ResizeResponse | HandlersResponse> | undefined => {
+    ): Promise<ResizeResponse | HandlersResponse | string> | undefined => {
+      // Formatting for the JS tab. Here rather than in the content script,
+      // which is injected into every page and has a budget to keep.
+      if (isBeautifyMessage(message)) {
+        try {
+          return Promise.resolve(
+            beautifyJs(message.code, { indent_size: 2, max_preserve_newlines: 2, end_with_newline: false }),
+          );
+        } catch {
+          return Promise.resolve(message.code);
+        }
+      }
+
       // Checked, not cast: the event name is dispatched on every element of
       // the page, so only our own pattern is allowed through.
       if (isHandlersMessage(message)) {
