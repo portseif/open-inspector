@@ -57,7 +57,16 @@ function keepVisible(list: HTMLElement, row: HTMLElement, center: boolean): void
  * focusing a row highlights its element on the page; only a click or Enter
  * selects it, so you can look around without losing your place.
  */
-export function StructureTree({ info, api }: { info: StructureInfo; api: StructureApi }) {
+export function StructureTree({
+  info,
+  api,
+  onOpenScript,
+}: {
+  info: StructureInfo;
+  api: StructureApi;
+  /** Show the JS tab, for a click on a row's JS badge or a double-click on the row. */
+  onOpenScript?: (() => void) | undefined;
+}) {
   const list = useRef<HTMLDivElement>(null);
   const [focusKey, setFocusKey] = useState<string | null>(null);
   /**
@@ -249,6 +258,8 @@ export function StructureTree({ info, api }: { info: StructureInfo; api: Structu
               }}
               onDblClick={() => {
                 if (row.expandable) api.setExpanded(row.id, !row.expanded);
+                // The first click already selected it, so the tab opens on its handlers.
+                if (row.js) onOpenScript?.();
               }}
             >
               <span
@@ -266,7 +277,13 @@ export function StructureTree({ info, api }: { info: StructureInfo; api: Structu
               <span class="node-tag">{tag}</span>
               {rest ? <span class="node-attrs">{rest}</span> : null}
               {row.js ? (
-                <span class="node-js" title="Has event handlers: see the JS tab">
+                // A click on the badge opens the JS tab; the row's own click,
+                // which it bubbles on to, selects the element it opens on.
+                <span
+                  class="node-js"
+                  title="Has event handlers: click to see them in the JS tab"
+                  onClick={() => onOpenScript?.()}
+                >
                   <Icon name="js" size={12} />
                   <span class="sr-only">, has event handlers</span>
                 </span>

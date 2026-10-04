@@ -1204,7 +1204,9 @@ ${LIGHT_PANEL}  }
     display: grid;
     margin-right: 4px;
     color: var(--ink-mute);
+    cursor: pointer;
   }
+  .node-js:hover { color: var(--ink); }
 
   /*
    * Above the tree and outside its scroll, so the controls stay put while it

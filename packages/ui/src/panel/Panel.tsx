@@ -1151,7 +1151,14 @@ export function Panel({
           {/* Under the path it expands on, and above every tab, so a row
               clicked here shows its styles directly below. */}
           {data.structure && structure ? (
-            <StructureTree info={data.structure} api={structure} />
+            <StructureTree
+              info={data.structure}
+              api={structure}
+              onOpenScript={() => {
+                lastContentTab.current = 'js';
+                setTab('js');
+              }}
+            />
           ) : null}
           <div class="toolbar">
             <label class="search-box">

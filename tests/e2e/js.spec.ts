@@ -66,6 +66,33 @@ test.describe('js view', () => {
     await expect(treeRow(page, 'p#plain')).toHaveCount(1);
   });
 
+  test('double-clicking a row with handlers, or clicking its badge, opens the JS tab', async ({
+    context,
+    serviceWorker,
+  }) => {
+    const page = await context.newPage();
+    await openInspector(page, serviceWorker, JS_URL);
+    await pin(page, '#plain');
+    await openDrawer(page);
+
+    // A row without handlers leaves the tab alone.
+    await treeRow(page, 'p#plain').dblclick();
+    await expect(panel(page).locator('#oi-tab-styles')).toHaveAttribute('aria-selected', 'true');
+
+    // Its badge comes from the page-world probe, which answers after the tree first draws.
+    const property = treeRow(page, 'button#property');
+    await expect(property.locator('.node-js')).toBeVisible();
+    await property.dblclick();
+    await expect(panel(page).locator('#oi-tab-js')).toHaveAttribute('aria-selected', 'true');
+    await expect(panel(page).locator('.group', { hasText: 'Event handlers' }).locator('.js-item')).toHaveCount(1);
+
+    // A single click on a row's badge does the same, for that row.
+    await panel(page).locator('#oi-tab-styles').click();
+    await treeRow(page, 'button#inline').locator('.node-js').click();
+    await expect(panel(page).locator('#oi-tab-js')).toHaveAttribute('aria-selected', 'true');
+    await expect(panel(page).locator('.selector')).toContainText('button#inline');
+  });
+
   test('Expand all opens every node, and Collapse all closes them', async ({
     context,
     serviceWorker,
